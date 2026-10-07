@@ -416,13 +416,30 @@
             }
         }
 
+        // ----------------------------------------------------
+        // ส่วนที่ได้รับการแก้ไข: เพิ่มการจัดการ Header และดักจับ HTML
+        // ----------------------------------------------------
         async function callAPI(action, data = {}) {
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8' // สำคัญมากสำหรับ Google Apps Script เพื่อเลี่ยง CORS Preflight
+                    },
                     body: JSON.stringify({ action: action, data: data })
                 });
-                const result = await response.json();
+                
+                // อ่านข้อมูลเป็น Text ก่อนแปลงเป็น JSON
+                const textResponse = await response.text();
+                
+                // ตรวจสอบว่า Backend ส่ง HTML กลับมาหรือไม่ (สาเหตุของ Unexpected token '<')
+                if (textResponse.trim().startsWith('<')) {
+                    console.error("เซิร์ฟเวอร์ตอบกลับเป็น HTML แทนที่จะเป็น JSON:", textResponse);
+                    throw new Error("ระบบส่วนหลังบ้าน (Google Apps Script) ตอบกลับมาผิดพลาด อาจเกิดจากการตั้งค่าสิทธิ์ 'Who has access' ไม่ใช่ 'Anyone' หรือ URL ผิด");
+                }
+                
+                const result = JSON.parse(textResponse);
+                
                 if (result.status === "success") {
                     return result.data;
                 } else {
@@ -434,6 +451,7 @@
                 throw error;
             }
         }
+        // ----------------------------------------------------
 
         function downloadCSVTemplate() {
             const csvContent = "data:text/csv;charset=utf-8,\uFEFFรหัสประจำตัว,คำนำหน้า,ชื่อ,สกุล,เลขบัตรประจำตัวนักเรียน\n10001,ด.ช.,สมชาย,ใจดี,1234567890123\n10002,ด.ญ.,สมหญิง,รักเรียน,9876543210987";
