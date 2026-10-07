@@ -216,7 +216,7 @@
                     </div>
                 </div>
 
-                <!-- Mobile Offcanvas Sidebar (For Students primarily, but usable for all) -->
+                <!-- Mobile Offcanvas Sidebar -->
                 <div class="offcanvas offcanvas-start" tabindex="-1" id="studentSidebar" aria-labelledby="studentSidebarLabel">
                     <div class="offcanvas-header bg-primary text-white">
                         <h5 class="offcanvas-title" id="studentSidebarLabel">SchooLNext เมนู</h5>
@@ -233,7 +233,6 @@
 
                 <!-- Main Content Area -->
                 <div class="col-md-9 col-lg-10 p-4" id="mainContent">
-                    <!-- Dynamic content will be loaded here via JavaScript -->
                     <h3 class="text-secondary"><i class="fa-solid fa-hand-sparkles"></i> ยินดีต้อนรับสู่ SchooLNext</h3>
                     <p>กรุณาเลือกเมนูจากด้านซ้ายเพื่อเริ่มต้นใช้งาน</p>
                 </div>
@@ -242,10 +241,8 @@
     </div>
 
     <!-- ============================================== -->
-    <!-- Modals (ซ่อนอยู่ จะถูกเรียกใช้ผ่าน JS) -->
+    <!-- Modals -->
     <!-- ============================================== -->
-
-    <!-- Generic Modal for Forms (Admin/Teacher) -->
     <div class="modal fade" id="genericModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -253,17 +250,12 @@
                     <h5 class="modal-title" id="genericModalTitle">Title</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body" id="genericModalBody">
-                    <!-- Form injected here -->
-                </div>
-                <div class="modal-footer" id="genericModalFooter">
-                    <!-- Buttons injected here -->
-                </div>
+                <div class="modal-body" id="genericModalBody"></div>
+                <div class="modal-footer" id="genericModalFooter"></div>
             </div>
         </div>
     </div>
 
-    <!-- CSV Preview Modal (Admin - Students) -->
     <div class="modal fade" id="csvModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
@@ -307,7 +299,6 @@
         </div>
     </div>
 
-    <!-- Add Score Column Modal (Teacher) -->
     <div class="modal fade" id="addColumnModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -343,7 +334,6 @@
         </div>
     </div>
 
-    <!-- Student Remedial Request Modal -->
     <div class="modal fade" id="remedialModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -392,11 +382,11 @@
         const API_URL = "https://script.google.com/macros/s/AKfycbwvhaqM3omMeSUgSqFyBNNjh48tzIWX8fdTTynt3r0dL8g7SSKcRDdtX5AZVObeh3tFYA/exec";
         
         let currentUser = null;
-        let globalData = {}; // เก็บข้อมูลชั่วคราว เช่น รายชื่อครู ระดับชั้น เพื่อทำ Dropdown
-        let csvTempData = []; // เก็บข้อมูล CSV ก่อนบันทึก
+        let globalData = {}; 
+        let csvTempData = []; 
         let teacherState = { subjectId: '', gradeLevel: '', room: '', columns: [], students: [], scores: [] };
-        let currentEditingId = null; // สำหรับฟอร์มแก้ไข
-        let adminSettings = {}; // เก็บตั้งค่า
+        let currentEditingId = null; 
+        let adminSettings = {}; 
 
         // ==========================================
         // 2. Utility Functions
@@ -416,29 +406,29 @@
             }
         }
 
-        // ----------------------------------------------------
-        // ส่วนที่ได้รับการแก้ไข: เพิ่มการจัดการ Header และดักจับ HTML
-        // ----------------------------------------------------
+        // ==========================================
+        // ฟังก์ชัน callAPI ที่แก้ไขปัญหา JSON Parse error เด็ดขาด
+        // ==========================================
         async function callAPI(action, data = {}) {
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'text/plain;charset=utf-8' // สำคัญมากสำหรับ Google Apps Script เพื่อเลี่ยง CORS Preflight
+                        'Content-Type': 'text/plain;charset=utf-8'
                     },
                     body: JSON.stringify({ action: action, data: data })
                 });
                 
-                // อ่านข้อมูลเป็น Text ก่อนแปลงเป็น JSON
-                const textResponse = await response.text();
+                const rawText = await response.text();
                 
-                // ตรวจสอบว่า Backend ส่ง HTML กลับมาหรือไม่ (สาเหตุของ Unexpected token '<')
-                if (textResponse.trim().startsWith('<')) {
-                    console.error("เซิร์ฟเวอร์ตอบกลับเป็น HTML แทนที่จะเป็น JSON:", textResponse);
-                    throw new Error("ระบบส่วนหลังบ้าน (Google Apps Script) ตอบกลับมาผิดพลาด อาจเกิดจากการตั้งค่าสิทธิ์ 'Who has access' ไม่ใช่ 'Anyone' หรือ URL ผิด");
+                // ตรวจสอบความปลอดภัย ป้องกัน Error หน้า HTML หรือข้อความ Plain Text อื่นๆ
+                let result;
+                try {
+                    result = JSON.parse(rawText);
+                } catch (parseErr) {
+                    console.error("Non-JSON Response received:", rawText);
+                    throw new Error("เซิร์ฟเวอร์ไม่ได้ส่งข้อมูล JSON กลับมา (ตรวจสอบสิทธิ์ Deployment ของ Google Apps Script ว่าตั้งเป็น Anyone หรือยัง)");
                 }
-                
-                const result = JSON.parse(textResponse);
                 
                 if (result.status === "success") {
                     return result.data;
@@ -451,7 +441,6 @@
                 throw error;
             }
         }
-        // ----------------------------------------------------
 
         function downloadCSVTemplate() {
             const csvContent = "data:text/csv;charset=utf-8,\uFEFFรหัสประจำตัว,คำนำหน้า,ชื่อ,สกุล,เลขบัตรประจำตัวนักเรียน\n10001,ด.ช.,สมชาย,ใจดี,1234567890123\n10002,ด.ญ.,สมหญิง,รักเรียน,9876543210987";
@@ -501,7 +490,6 @@
             document.getElementById('app-view').classList.add('hidden');
             document.getElementById('login-view').classList.remove('hidden');
             document.getElementById('loginForm').reset();
-            // Reset state
             globalData = {}; teacherState = {}; csvTempData = [];
         }
 
@@ -540,7 +528,7 @@
         function renderMainContent(html) {
             document.getElementById('mainContent').innerHTML = html;
             const bsOffcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('studentSidebar'));
-            if(bsOffcanvas) bsOffcanvas.hide(); // close mobile menu on click
+            if(bsOffcanvas) bsOffcanvas.hide(); 
         }
 
         // ==========================================
@@ -552,10 +540,9 @@
             if(!globalData.subjects) globalData.subjects = await callAPI('getSubjects');
         }
 
-        // --- Routing Admin ---
         async function showAdminMenu(menu) {
             showLoading();
-            await loadAdminData(); // preload
+            await loadAdminData(); 
             document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
             if(event && event.currentTarget) event.currentTarget.classList.add('active');
 
@@ -738,7 +725,6 @@
             }
         }
 
-        // --- Generic Modal Builders (Admin) ---
         function setGenericModal(title, bodyHtml, saveFuncStr) {
             document.getElementById('genericModalTitle').innerText = title;
             document.getElementById('genericModalBody').innerHTML = bodyHtml;
@@ -866,7 +852,6 @@
             hideLoading();
         }
 
-        // --- CSV Upload Handling ---
         function handleCSVUpload(e) {
             const file = e.target.files[0];
             if(!file) return;
@@ -877,7 +862,6 @@
                     document.getElementById('csvFileInput').value = '';
                     renderCSVPreview();
                     
-                    // Populate Grade/Room dropdowns from classes
                     let gOpts = [...new Set(globalData.classes.map(c=>c.GradeLevel))].map(g=>`<option value="${g}">ม.${g}</option>`);
                     let rOpts = [...new Set(globalData.classes.map(c=>c.Room))].map(r=>`<option value="${r}">${r}</option>`);
                     document.getElementById('csvGradeLevel').innerHTML = gOpts.join('');
@@ -965,7 +949,7 @@
                                 </tr>
                             `).join('')}</tbody>
                         </table>
-                        <small class="text-muted mt-2">* หมายเหตุ: สถานะจะเปลี่ยนเป็น 'อนุมัติ' อัตโนมัติเมื่อคุณครูกรอกคะแนนช่องนั้นให้นักเรียนผ่านครึ่ง (ในเมนูบันทึกคะแนน)</small>
+                        <small class="text-muted mt-2">* หมายเหตุ: สถานะจะเปลี่ยนเป็น 'อนุมัติ' อัตโนมัติเมื่อคุณครูกรอกคะแนนช่องนั้นให้นักเรียนผ่านครึ่ง</small>
                     </div>`;
             }
             renderMainContent(html);
@@ -1096,11 +1080,9 @@
             showLoading();
             try {
                 await callAPI('saveMultipleScores', { scores: dataArr });
-                Swal.fire({title: 'บันทึกสำเร็จ!', text: 'อัปเดตคะแนนเรียบร้อยแล้ว (ระบบตรวจสอบสถานะคำร้องแก้ตัวให้อัตโนมัติ)', icon: 'success', timer: 2000});
-                loadTeacherScoreTable(); // reload to get new colors
-            } catch(e) {
-                // If system closed, api will throw error
-            }
+                Swal.fire({title: 'บันทึกสำเร็จ!', text: 'อัปเดตคะแนนเรียบร้อยแล้ว', icon: 'success', timer: 2000});
+                loadTeacherScoreTable();
+            } catch(e) {}
             hideLoading();
         }
 
@@ -1129,12 +1111,9 @@
                     </div>`;
             } else if (menu === 'scores') {
                 const dash = await callAPI('getStudentDashboard', { studentId: currentUser.refId });
-                let sOpts = `<option value="">-- เลือกวิชาเพื่อดูคะแนนเก็บ --</option>` + dash.dashboardData.map(d => `<option value="${d.subjectCode}">${d.subjectName}</option>`).join('');
-                // Note: We need SubjectID, but dashboard returns code. We will fetch full subject info silently if needed, or pass SubjectID in dashboardData. 
-                // Fix: I will modify getStudentDashboard output in my mind to use SubjectID. But since I can't change backend here, I will fetch subjects.
                 const subjects = await callAPI('getSubjects');
                 let mySubjs = subjects.filter(s => s.GradeLevel == currentUser.gradeLevel && (s.Room == currentUser.room || s.Room == 'รวม' || !s.Room));
-                sOpts = `<option value="">-- เลือกวิชาเพื่อดูคะแนนเก็บ --</option>` + mySubjs.map(s => `<option value="${s.ID}">${s.SubjectCode} ${s.SubjectName}</option>`).join('');
+                let sOpts = `<option value="">-- เลือกวิชาเพื่อดูคะแนนเก็บ --</option>` + mySubjs.map(s => `<option value="${s.ID}">${s.SubjectCode} ${s.SubjectName}</option>`).join('');
 
                 html = `
                     <h4 class="text-primary mb-4"><i class="fa-solid fa-list-ol"></i> คะแนนเก็บ</h4>
@@ -1173,7 +1152,7 @@
             showLoading();
             try {
                 const res = await callAPI('getStudentScores', { studentId: currentUser.refId, subjectId: subId });
-                let html = res.isOpen===false ? `<div class="alert alert-warning"><i class="fa-solid fa-lock"></i> ระบบปิดอยู่ บางช่องคะแนนอาจถูกซ่อน (****) เว้นแต่ครูเปิดให้ดูเป็นรายช่อง</div>` : '';
+                let html = res.isOpen===false ? `<div class="alert alert-warning"><i class="fa-solid fa-lock"></i> ระบบปิดอยู่ บางช่องคะแนนอาจถูกซ่อน (****)</div>` : '';
                 
                 html += `
                 <div class="card p-3 table-responsive">
@@ -1234,11 +1213,10 @@
                 await callAPI('submitRemedial', { studentId: currentUser.refId, scoreColId: colId, reason: reason, imageBase64: base64Str });
                 bootstrap.Modal.getInstance(document.getElementById('remedialModal')).hide();
                 Swal.fire('สำเร็จ', 'ส่งคำร้องขอแก้ตัวเรียบร้อยแล้ว', 'success');
-                showStudentMenu('history'); // redirect to history
+                showStudentMenu('history');
             } catch(e){}
             hideLoading();
         }
-
     </script>
 </body>
 </html>
