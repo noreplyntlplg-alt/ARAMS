@@ -880,12 +880,26 @@
             let html = '<div style="text-align:left;">';
             teacherGradingCache.structure.forEach(st => { html += `<div style="margin-bottom:10px;"><input type="checkbox" id="chk-${st.StructID}" ${st.IsPublic?'checked':''}> <label for="chk-${st.StructID}">${st.UnitName}</label></div>`; });
             html += '</div>';
-            const { isConfirmed } = await Swal.fire({ title: 'เปิดให้นักเรียนดู', html: html, showCancelButton: true });
-            if(isConfirmed) {
+            
+            // ใช้ preConfirm เพื่อดึงค่า checkbox ก่อนที่ Modal จะถูกปิดและทำลาย element ทิ้ง
+            const { value: formValues } = await Swal.fire({ 
+                title: 'เปิดให้นักเรียนดู', 
+                html: html, 
+                showCancelButton: true,
+                preConfirm: () => {
+                    let results = {};
+                    teacherGradingCache.structure.forEach(st => {
+                        results[st.StructID] = document.getElementById(`chk-${st.StructID}`).checked;
+                    });
+                    return results;
+                }
+            });
+            
+            if(formValues) {
                 showLoading();
                 try {
                     for(let st of teacherGradingCache.structure) {
-                        let isChk = document.getElementById(`chk-${st.StructID}`).checked;
+                        let isChk = formValues[st.StructID];
                         if(st.IsPublic != isChk) {
                             st.IsPublic = isChk;
                             await apiCall('saveScoreStructure', st);
@@ -1005,17 +1019,30 @@
 
         async function openRemedialModal(subId, strId, oldScore) {
             const html = `<textarea id="swal-r-rs" class="swal2-textarea" placeholder="ระบุเหตุผล..."></textarea><input type="file" id="swal-r-file" class="swal2-file" accept="image/*">`;
-            const { isConfirmed } = await Swal.fire({ title: 'ส่งคำร้องขอแก้ตัว', html: html, showCancelButton: true, confirmButtonText: 'ส่งคำร้อง' });
-            if(isConfirmed) {
-                const reason = document.getElementById('swal-r-rs').value;
-                const fileInput = document.getElementById('swal-r-file');
-                if(!reason || !fileInput.files.length) return showError("กรุณาระบุเหตุผลและแนบรูปภาพ");
-                
+            
+            // ใช้ preConfirm เพื่อดึงค่า input ก่อนที่ Modal จะถูกปิดและทำลาย element ทิ้ง
+            const { value: formValues } = await Swal.fire({ 
+                title: 'ส่งคำร้องขอแก้ตัว', 
+                html: html, 
+                showCancelButton: true, 
+                confirmButtonText: 'ส่งคำร้อง',
+                preConfirm: () => {
+                    const reason = document.getElementById('swal-r-rs').value;
+                    const fileInput = document.getElementById('swal-r-file');
+                    if(!reason || !fileInput.files.length) {
+                        Swal.showValidationMessage("กรุณาระบุเหตุผลและแนบรูปภาพ");
+                        return false;
+                    }
+                    return { reason: reason, file: fileInput.files[0] };
+                }
+            });
+
+            if(formValues) {
                 showLoading('กำลังอัปโหลดรูปภาพและส่งคำร้อง...');
                 try {
                     // Upload to ImgBB
                     let formData = new FormData();
-                    formData.append('image', fileInput.files[0]);
+                    formData.append('image', formValues.file);
                     formData.append('key', IMGBB_KEY);
                     const imgRes = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
                     const imgJson = await imgRes.json();
@@ -1023,7 +1050,7 @@
                     const imgUrl = imgJson.data.display_url;
 
                     // Send to GAS
-                    await apiCall('submitRemedialRequest', { StudentID: currentUser.data.StudentID, SysSubID: subId, StructID: strId, Reason: reason, ImageURL: imgUrl, OldScore: oldScore });
+                    await apiCall('submitRemedialRequest', { StudentID: currentUser.data.StudentID, SysSubID: subId, StructID: strId, Reason: formValues.reason, ImageURL: imgUrl, OldScore: oldScore });
                     closeLoading(); showSuccess("ส่งคำร้องสำเร็จ");
                 } catch(e) { closeLoading(); showError(e.message); }
             }
