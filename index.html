@@ -4,1219 +4,1061 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SchooLNext - ระบบตรวจสอบและบันทึกผลการเรียน</title>
-    
-    <!-- Google Fonts: Sarabun (เพื่อความเข้ากันได้กับ TH Sarabun PSK) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Fonts: ใช้ Sarabun แทน TH Sarabun PSK เพื่อการแสดงผลบนเว็บที่สมบูรณ์แบบและเป็นทางการ -->
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SweetAlert2 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.min.css">
-
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- PapaParse สำหรับอ่านไฟล์ CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
     <style>
         :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #34495e;
-            --accent-color: #3498db;
-            --bg-color: #f8f9fc;
-            --text-color: #333333;
-            --fail-color: #ffeaea;
+            --primary: #1A365D;
+            --secondary: #2B6CB0;
+            --accent: #E2E8F0;
+            --text-main: #2D3748;
+            --bg-light: #F7FAFC;
+            --danger: #E53E3E;
+            --success: #38A169;
+            --warning: #D69E2E;
         }
 
-        body {
-            font-family: 'Sarabun', 'TH Sarabun PSK', sans-serif;
-            font-size: 1.15rem;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-        }
-
-        /* Typography Override for Sarabun to look more formal */
-        h1, h2, h3, h4, h5, h6, .navbar-brand {
-            font-weight: 600;
-        }
-
-        /* Navbar & Sidebar */
-        .navbar-custom {
-            background-color: var(--primary-color);
-        }
-        .navbar-custom .navbar-brand, .navbar-custom .nav-link {
-            color: #ffffff;
-        }
-        .sidebar {
-            background-color: #ffffff;
-            min-height: calc(100vh - 56px);
-            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-        }
-        .sidebar-link {
-            display: block;
-            padding: 12px 20px;
-            color: var(--primary-color);
-            text-decoration: none;
-            transition: all 0.2s;
-            border-left: 4px solid transparent;
-        }
-        .sidebar-link:hover, .sidebar-link.active {
-            background-color: #f1f4f8;
-            border-left-color: var(--accent-color);
-            font-weight: 600;
-        }
-        .sidebar-link i {
-            width: 25px;
-        }
-
-        /* Cards & Tables */
-        .card {
-            border: none;
-            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
-            border-radius: 0.35rem;
-        }
-        .card-header {
-            background-color: #ffffff;
-            border-bottom: 1px solid #e3e6f0;
-            font-weight: bold;
-            color: var(--primary-color);
-        }
-        .table-custom th {
-            background-color: var(--primary-color);
-            color: #ffffff;
-            font-weight: 500;
-            vertical-align: middle;
-            text-align: center;
-        }
-        .table-custom td {
-            vertical-align: middle;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Sarabun', sans-serif; }
+        body { background-color: var(--bg-light); color: var(--text-main); font-size: 18px; line-height: 1.5; }
         
-        /* Teacher Score Cells */
-        .score-input {
-            width: 70px;
-            text-align: center;
+        /* Loading Overlay */
+        #loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8); z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
-        .cell-fail {
-            background-color: var(--fail-color) !important;
-        }
-        .cell-disabled {
-            background-color: #e9ecef !important;
-            color: #6c757d;
-        }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Loader Overlay */
-        #loader-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.8);
-            z-index: 9999;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
+        /* Login Layout */
+        #login-view {
+            height: 100vh; display: flex; justify-content: center; align-items: center;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
         }
-
-        /* Utility */
-        .hidden { display: none !important; }
-        .cursor-pointer { cursor: pointer; }
+        .login-box {
+            background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 100%; max-width: 400px; text-align: center;
+        }
+        .login-box h2 { color: var(--primary); margin-bottom: 20px; font-weight: 600; font-size: 28px; }
+        .input-group { margin-bottom: 15px; position: relative; text-align: left; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+        .input-group input, .input-group select {
+            width: 100%; padding: 10px 15px; border: 1px solid #CBD5E0; border-radius: 5px; font-size: 18px; outline: none;
+        }
+        .input-group input:focus, .input-group select:focus { border-color: var(--secondary); }
+        .toggle-password { position: absolute; right: 15px; top: 40px; cursor: pointer; color: #718096; }
+        .remember-me { display: flex; align-items: center; margin-bottom: 20px; gap: 10px; }
+        .btn {
+            background-color: var(--secondary); color: white; border: none; padding: 10px 20px; border-radius: 5px;
+            cursor: pointer; font-size: 18px; transition: background 0.3s;
+        }
+        .btn:hover { background-color: var(--primary); }
+        .btn-block { width: 100%; }
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: #C53030; }
+        .btn-success { background-color: var(--success); }
+        .btn-warning { background-color: var(--warning); color: white;}
+        
+        /* Dashboard Layout */
+        #dashboard-view { display: none; min-height: 100vh; flex-direction: column; }
+        header { background: var(--primary); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        header h1 { font-size: 24px; margin: 0; }
+        .user-info { display: flex; align-items: center; gap: 20px; }
+        .main-container { display: flex; flex: 1; }
+        
+        /* Sidebar */
+        aside { width: 250px; background: white; border-right: 1px solid var(--accent); padding: 20px 0; }
+        .menu-item {
+            padding: 12px 20px; cursor: pointer; display: flex; align-items: center; gap: 10px;
+            color: var(--text-main); transition: background 0.2s; border-left: 4px solid transparent;
+        }
+        .menu-item:hover, .menu-item.active { background: var(--bg-light); color: var(--secondary); border-left-color: var(--secondary); font-weight: 600; }
+        
+        /* Content Area */
+        main { flex: 1; padding: 30px; overflow-y: auto; background: var(--bg-light); }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+        .card-header h3 { font-size: 22px; color: var(--primary); }
+        
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
+        th, td { border: 1px solid var(--accent); padding: 12px; text-align: left; }
+        th { background-color: var(--primary); color: white; font-weight: 500; text-align: center;}
+        tr:nth-child(even) { background-color: #F7FAFC; }
+        .text-center { text-align: center; }
+        .action-btns button { margin: 0 5px; padding: 5px 10px; font-size: 14px; }
+        
+        /* Specific Styles */
+        .score-input { width: 60px; text-align: center; padding: 5px; }
+        .low-score { background-color: #FED7D7 !important; }
+        .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .full-width { grid-column: 1 / -1; }
+        .badge { padding: 5px 10px; border-radius: 20px; font-size: 14px; color: white; }
+        .bg-pending { background: var(--warning); }
+        .bg-approved { background: var(--success); }
+        
+        /* Responsive Mobile menu (สามขีด) */
+        .mobile-menu-btn { display: none; font-size: 24px; cursor: pointer; color: white; }
+        @media (max-width: 768px) {
+            .main-container { flex-direction: column; }
+            aside { width: 100%; display: none; }
+            aside.show { display: block; }
+            .mobile-menu-btn { display: block; }
+            .grid-form { grid-template-columns: 1fr; }
+            table { display: block; overflow-x: auto; white-space: nowrap; }
+        }
     </style>
 </head>
 <body>
 
-    <!-- Loading Overlay -->
-    <div id="loader-overlay">
-        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
-        <h4 class="mt-3 text-primary">กำลังประมวลผล...</h4>
+    <!-- Loading Spinner -->
+    <div id="loading" style="display: none;">
+        <div class="spinner"></div>
+        <p style="margin-top: 15px; font-weight: 600;">กำลังประมวลผล...</p>
     </div>
 
-    <!-- ============================================== -->
-    <!-- หน้าต่างเข้าสู่ระบบ (Login View) -->
-    <!-- ============================================== -->
-    <div id="login-view" class="container" style="height: 100vh; display: flex; align-items: center; justify-content: center;">
-        <div class="card p-4" style="width: 100%; max-width: 450px;">
-            <div class="text-center mb-4">
-                <i class="fa-solid fa-graduation-cap fa-4x text-primary mb-3"></i>
-                <h2 class="text-primary font-weight-bold">SchooLNext</h2>
-                <p class="text-muted">ระบบตรวจสอบและบันทึกผลการเรียน</p>
-            </div>
-            <form id="loginForm" onsubmit="handleLogin(event)">
-                <div class="mb-3">
-                    <label class="form-label">ชื่อผู้ใช้</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="fa-solid fa-user"></i></span>
-                        <input type="text" class="form-control" id="loginUsername" required>
-                    </div>
+    <!-- Login View -->
+    <div id="login-view">
+        <div class="login-box">
+            <h2>SchooLNext</h2>
+            <form id="login-form" onsubmit="event.preventDefault(); handleLogin();">
+                <div class="input-group">
+                    <label>ชื่อผู้ใช้ (Username)</label>
+                    <input type="text" id="login-username" required placeholder="ชื่อผู้ใช้ หรือ รหัสประจำตัว">
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">รหัสผ่าน</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
-                        <input type="password" class="form-control" id="loginPassword" required>
-                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword()">
-                            <i class="fa-solid fa-eye" id="togglePasswordIcon"></i>
-                        </button>
-                    </div>
+                <div class="input-group">
+                    <label>รหัสผ่าน (Password)</label>
+                    <input type="password" id="login-password" required placeholder="รหัสผ่าน หรือ เลขบัตรประชาชน">
+                    <i class="fas fa-eye toggle-password" onclick="togglePassword()"></i>
                 </div>
-                <div class="mb-4 form-check">
-                    <input type="checkbox" class="form-check-input" id="rememberMe">
-                    <label class="form-check-label" for="rememberMe">จดจำการเข้าสู่ระบบ</label>
+                <div class="remember-me">
+                    <input type="checkbox" id="remember-me">
+                    <label for="remember-me" style="margin: 0;">จดจำการเข้าสู่ระบบ</label>
                 </div>
-                <button type="submit" class="btn btn-primary w-100 py-2 fs-5"><i class="fa-solid fa-right-to-bracket me-2"></i>เข้าสู่ระบบ</button>
+                <button type="submit" class="btn btn-block">เข้าสู่ระบบ</button>
             </form>
         </div>
     </div>
 
-    <!-- ============================================== -->
-    <!-- ระบบหลัก (Main Application View) -->
-    <!-- ============================================== -->
-    <div id="app-view" class="hidden">
-        <!-- Top Navbar -->
-        <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="#"><i class="fa-solid fa-graduation-cap me-2"></i>SchooLNext</a>
-                <!-- Mobile Student Menu Toggler -->
-                <button class="navbar-toggler text-white" type="button" data-bs-toggle="offcanvas" data-bs-target="#studentSidebar" aria-controls="studentSidebar" style="border-color: rgba(255,255,255,0.5);" id="mobileMenuBtn">
-                    <i class="fa-solid fa-bars"></i>
+    <!-- Dashboard View -->
+    <div id="dashboard-view">
+        <header>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <i class="fas fa-bars mobile-menu-btn" onclick="toggleMobileMenu()"></i>
+                <h1>SchooLNext</h1>
+            </div>
+            <div class="user-info">
+                <span id="user-display-name"><i class="fas fa-user-circle"></i> ชื่อผู้ใช้</span>
+                <button class="btn btn-danger" style="padding: 5px 15px; font-size: 16px;" onclick="handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
                 </button>
-                <div class="collapse navbar-collapse justify-content-end d-none d-lg-flex">
-                    <ul class="navbar-nav">
-                        <li class="nav-item">
-                            <span class="nav-link"><i class="fa-solid fa-user-circle me-1"></i> <span id="displayUserName"></span> (<span id="displayRole"></span>)</span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link cursor-pointer text-danger fw-bold" onclick="logout()"><i class="fa-solid fa-sign-out-alt me-1"></i> ออกจากระบบ</a>
-                        </li>
-                    </ul>
-                </div>
             </div>
-        </nav>
-
-        <div class="container-fluid">
-            <div class="row">
-                <!-- Sidebar (Admin & Teacher) -->
-                <div class="col-md-3 col-lg-2 p-0 sidebar d-none d-md-block" id="mainSidebar">
-                    <div id="adminMenu" class="hidden">
-                        <a class="sidebar-link" href="#" onclick="showAdminMenu('subject')"><i class="fa-solid fa-book"></i> เมนูรายวิชา</a>
-                        <a class="sidebar-link" href="#" onclick="showAdminMenu('student')"><i class="fa-solid fa-users"></i> ทะเบียนนักเรียน</a>
-                        <a class="sidebar-link" href="#" onclick="showAdminMenu('class')"><i class="fa-solid fa-chalkboard-user"></i> เมนูระดับชั้น</a>
-                        <a class="sidebar-link" href="#" onclick="showAdminMenu('teacher')"><i class="fa-solid fa-user-tie"></i> ทะเบียนคุณครู</a>
-                        <a class="sidebar-link" href="#" onclick="showAdminMenu('assignment')"><i class="fa-solid fa-tasks"></i> มอบหมายภาระงาน</a>
-                        <a class="sidebar-link" href="#" onclick="showAdminMenu('settingsTeacher')"><i class="fa-solid fa-cogs"></i> ตั้งค่าระบบคุณครู</a>
-                        <a class="sidebar-link" href="#" onclick="showAdminMenu('settingsStudent')"><i class="fa-solid fa-user-cog"></i> ตั้งค่าระบบนักเรียน</a>
-                        <a class="sidebar-link" href="#" onclick="showAdminMenu('settingsSystem')"><i class="fa-solid fa-sliders"></i> ตั้งค่าเกณฑ์คะแนน</a>
-                    </div>
-                    <div id="teacherMenu" class="hidden">
-                        <a class="sidebar-link" href="#" onclick="showTeacherMenu('scores')"><i class="fa-solid fa-pen-to-square"></i> บันทึกคะแนน</a>
-                        <a class="sidebar-link" href="#" onclick="showTeacherMenu('remedial')"><i class="fa-solid fa-envelope-open-text"></i> คำร้องขอแก้ตัว</a>
-                    </div>
-                    <div id="studentMenuDesktop" class="hidden">
-                        <a class="sidebar-link" href="#" onclick="showStudentMenu('dashboard')"><i class="fa-solid fa-chart-line"></i> ผลการเรียนเฉลี่ย</a>
-                        <a class="sidebar-link" href="#" onclick="showStudentMenu('scores')"><i class="fa-solid fa-list-ol"></i> คะแนนเก็บ</a>
-                        <a class="sidebar-link" href="#" onclick="showStudentMenu('history')"><i class="fa-solid fa-clock-rotate-left"></i> ประวัติคำร้องขอแก้ตัว</a>
-                    </div>
-                </div>
-
-                <!-- Mobile Offcanvas Sidebar -->
-                <div class="offcanvas offcanvas-start" tabindex="-1" id="studentSidebar" aria-labelledby="studentSidebarLabel">
-                    <div class="offcanvas-header bg-primary text-white">
-                        <h5 class="offcanvas-title" id="studentSidebarLabel">SchooLNext เมนู</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-                    </div>
-                    <div class="offcanvas-body p-0">
-                        <div id="mobileMenuContent"></div>
-                        <div class="p-3 border-top mt-auto">
-                            <p class="mb-2"><i class="fa-solid fa-user-circle me-1"></i> <span id="mobileUserName"></span></p>
-                            <button class="btn btn-outline-danger w-100" onclick="logout()"><i class="fa-solid fa-sign-out-alt me-1"></i> ออกจากระบบ</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Main Content Area -->
-                <div class="col-md-9 col-lg-10 p-4" id="mainContent">
-                    <h3 class="text-secondary"><i class="fa-solid fa-hand-sparkles"></i> ยินดีต้อนรับสู่ SchooLNext</h3>
-                    <p>กรุณาเลือกเมนูจากด้านซ้ายเพื่อเริ่มต้นใช้งาน</p>
-                </div>
-            </div>
+        </header>
+        
+        <div class="main-container">
+            <aside id="sidebar">
+                <!-- เมนูจะถูกสร้างโดย JavaScript ตามสิทธิ์ (Role) -->
+            </aside>
+            <main id="content-area">
+                <!-- เนื้อหาจะถูกแสดงที่นี่ -->
+            </main>
         </div>
     </div>
-
-    <!-- ============================================== -->
-    <!-- Modals -->
-    <!-- ============================================== -->
-    <div class="modal fade" id="genericModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="genericModalTitle">Title</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body" id="genericModalBody"></div>
-                <div class="modal-footer" id="genericModalFooter"></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="csvModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title">ตัวอย่างข้อมูลนำเข้า (CSV)</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">เลือกระดับชั้น</label>
-                            <select class="form-select" id="csvGradeLevel"></select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">เลือกห้อง</label>
-                            <select class="form-select" id="csvRoom"></select>
-                        </div>
-                    </div>
-                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                        <table class="table table-bordered table-striped table-custom" id="csvPreviewTable">
-                            <thead>
-                                <tr>
-                                    <th>ลำดับ</th>
-                                    <th>รหัสประจำตัว</th>
-                                    <th>คำนำหน้า</th>
-                                    <th>ชื่อ</th>
-                                    <th>สกุล</th>
-                                    <th>เลขบัตรประจำตัว</th>
-                                    <th>จัดการตำแหน่ง</th>
-                                </tr>
-                            </thead>
-                            <tbody id="csvPreviewBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-                    <button type="button" class="btn btn-primary" onclick="confirmSaveCSV()"><i class="fa-solid fa-save"></i> บันทึกข้อมูล</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="addColumnModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">เพิ่มช่องคะแนน</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="addColumnForm">
-                        <div class="mb-3">
-                            <label class="form-label">ชื่อหน่วยการเรียนรู้ / ชื่อช่องคะแนน</label>
-                            <input type="text" class="form-control" id="colName" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">คะแนนเต็ม</label>
-                            <input type="number" class="form-control" id="maxScore" required min="1">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">ประเภทคะแนน</label>
-                            <select class="form-select" id="colType" required>
-                                <option value="Unit">คะแนนเก็บ (หน่วยการเรียนรู้)</option>
-                                <option value="Midterm">สอบกลางภาค</option>
-                                <option value="Final">สอบปลายภาค</option>
-                            </select>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-                    <button type="button" class="btn btn-primary" onclick="saveNewColumn()">บันทึก</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="remedialModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-warning">
-                    <h5 class="modal-title"><i class="fa-solid fa-envelope-open-text"></i> ส่งคำร้องขอแก้ตัว</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="remedialForm">
-                        <input type="hidden" id="remColId">
-                        <div class="mb-3">
-                            <label class="form-label">วิชา</label>
-                            <input type="text" class="form-control" id="remSubjectName" readonly>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">ช่องคะแนนที่ขอแก้ตัว</label>
-                            <input type="text" class="form-control" id="remColName" readonly>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">เหตุผลประกอบคำร้อง</label>
-                            <textarea class="form-control" id="remReason" rows="3" required placeholder="ระบุเหตุผล หรือรายละเอียดงานที่ส่งแก้"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">แนบรูปภาพหลักฐาน (ถ้ามี)</label>
-                            <input type="file" class="form-control" id="remImage" accept="image/*">
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-                    <button type="button" class="btn btn-primary" onclick="submitRemedialRequest()">ส่งคำร้อง</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.all.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <script>
-        // ==========================================
-        // 1. Config & Global State
-        // ==========================================
-        const API_URL = "https://script.google.com/macros/s/AKfycbwvhaqM3omMeSUgSqFyBNNjh48tzIWX8fdTTynt3r0dL8g7SSKcRDdtX5AZVObeh3tFYA/exec";
-        
+        /**
+         * ============================================================================
+         * การตั้งค่าระบบหลัก
+         * ============================================================================
+         */
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwvhaqM3omMeSUgSqFyBNNjh48tzIWX8fdTTynt3r0dL8g7SSKcRDdtX5AZVObeh3tFYA/exec';
         let currentUser = null;
-        let globalData = {}; 
-        let csvTempData = []; 
-        let teacherState = { subjectId: '', gradeLevel: '', room: '', columns: [], students: [], scores: [] };
-        let currentEditingId = null; 
-        let adminSettings = {}; 
+        let globalData = {}; // เก็บข้อมูลชั่วคราวเช่น รายชื่อวิชา, นักเรียน ฯลฯ
 
-        // ==========================================
-        // 2. Utility Functions
-        // ==========================================
-        function showLoading() { document.getElementById('loader-overlay').style.display = 'flex'; }
-        function hideLoading() { document.getElementById('loader-overlay').style.display = 'none'; }
-        
-        function togglePassword() {
-            const pwd = document.getElementById('loginPassword');
-            const icon = document.getElementById('togglePasswordIcon');
-            if (pwd.type === "password") {
-                pwd.type = "text";
-                icon.className = "fa-solid fa-eye-slash";
-            } else {
-                pwd.type = "password";
-                icon.className = "fa-solid fa-eye";
-            }
-        }
+        // Helper: Loading
+        const showLoading = () => document.getElementById('loading').style.display = 'flex';
+        const hideLoading = () => document.getElementById('loading').style.display = 'none';
 
-        // ==========================================
-        // ฟังก์ชัน callAPI ที่แก้ไขปัญหา JSON Parse error เด็ดขาด
-        // ==========================================
-        async function callAPI(action, data = {}) {
+        // Helper: API Caller
+        async function apiCall(payload) {
             try {
-                const response = await fetch(API_URL, {
+                const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'text/plain;charset=utf-8'
-                    },
-                    body: JSON.stringify({ action: action, data: data })
+                    body: JSON.stringify(payload)
                 });
-                
-                const rawText = await response.text();
-                
-                // ตรวจสอบความปลอดภัย ป้องกัน Error หน้า HTML หรือข้อความ Plain Text อื่นๆ
-                let result;
-                try {
-                    result = JSON.parse(rawText);
-                } catch (parseErr) {
-                    console.error("Non-JSON Response received:", rawText);
-                    throw new Error("เซิร์ฟเวอร์ไม่ได้ส่งข้อมูล JSON กลับมา (ตรวจสอบสิทธิ์ Deployment ของ Google Apps Script ว่าตั้งเป็น Anyone หรือยัง)");
-                }
-                
-                if (result.status === "success") {
-                    return result.data;
-                } else {
-                    throw new Error(result.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
-                }
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message);
+                return result;
             } catch (error) {
-                console.error("API Error:", error);
-                Swal.fire('ข้อผิดพลาด!', error.message, 'error');
+                Swal.fire('ข้อผิดพลาด', error.message || 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
                 throw error;
             }
         }
 
-        function downloadCSVTemplate() {
-            const csvContent = "data:text/csv;charset=utf-8,\uFEFFรหัสประจำตัว,คำนำหน้า,ชื่อ,สกุล,เลขบัตรประจำตัวนักเรียน\n10001,ด.ช.,สมชาย,ใจดี,1234567890123\n10002,ด.ญ.,สมหญิง,รักเรียน,9876543210987";
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "student_template.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        /**
+         * ============================================================================
+         * ระบบ Login / Logout
+         * ============================================================================
+         */
+        function togglePassword() {
+            const pwd = document.getElementById('login-password');
+            const icon = document.querySelector('.toggle-password');
+            if (pwd.type === 'password') {
+                pwd.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                pwd.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
         }
 
-        // ==========================================
-        // 3. Authentication & Navigation
-        // ==========================================
-        window.onload = async function() {
-            const savedUser = localStorage.getItem('schoolNextUser');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
-                loadAppView();
-            }
-        };
+        async function handleLogin() {
+            const user = document.getElementById('login-username').value;
+            const pass = document.getElementById('login-password').value;
+            const remember = document.getElementById('remember-me').checked;
 
-        async function handleLogin(e) {
-            e.preventDefault();
-            const user = document.getElementById('loginUsername').value;
-            const pass = document.getElementById('loginPassword').value;
-            const remember = document.getElementById('rememberMe').checked;
+            if(!user || !pass) return;
 
             showLoading();
             try {
-                const userData = await callAPI('login', { username: user, password: pass });
-                currentUser = userData;
-                if (remember) {
-                    localStorage.setItem('schoolNextUser', JSON.stringify(userData));
+                const res = await apiCall({ action: 'login', username: user, password: pass });
+                hideLoading();
+                
+                currentUser = res.user;
+                if(remember) {
+                    localStorage.setItem('schoolnext_user', JSON.stringify(currentUser));
                 }
-                loadAppView();
-            } catch (err) {
-                // error handled in callAPI
-            }
-            hideLoading();
-        }
-
-        function logout() {
-            localStorage.removeItem('schoolNextUser');
-            currentUser = null;
-            document.getElementById('app-view').classList.add('hidden');
-            document.getElementById('login-view').classList.remove('hidden');
-            document.getElementById('loginForm').reset();
-            globalData = {}; teacherState = {}; csvTempData = [];
-        }
-
-        function loadAppView() {
-            document.getElementById('login-view').classList.add('hidden');
-            document.getElementById('app-view').classList.remove('hidden');
-            
-            document.getElementById('displayUserName').innerText = currentUser.name;
-            document.getElementById('mobileUserName').innerText = currentUser.name;
-            
-            let roleText = currentUser.role === 'Admin' ? 'ผู้จัดการระบบ' : (currentUser.role === 'Teacher' ? 'คุณครู' : 'นักเรียน');
-            document.getElementById('displayRole').innerText = roleText;
-
-            document.getElementById('adminMenu').classList.add('hidden');
-            document.getElementById('teacherMenu').classList.add('hidden');
-            document.getElementById('studentMenuDesktop').classList.add('hidden');
-
-            const mobileMenu = document.getElementById('mobileMenuContent');
-            mobileMenu.innerHTML = '';
-
-            if (currentUser.role === 'Admin') {
-                document.getElementById('adminMenu').classList.remove('hidden');
-                mobileMenu.innerHTML = document.getElementById('adminMenu').innerHTML;
-                showAdminMenu('subject');
-            } else if (currentUser.role === 'Teacher') {
-                document.getElementById('teacherMenu').classList.remove('hidden');
-                mobileMenu.innerHTML = document.getElementById('teacherMenu').innerHTML;
-                showTeacherMenu('scores');
-            } else if (currentUser.role === 'Student') {
-                document.getElementById('studentMenuDesktop').classList.remove('hidden');
-                mobileMenu.innerHTML = document.getElementById('studentMenuDesktop').innerHTML;
-                showStudentMenu('dashboard');
-            }
-        }
-
-        function renderMainContent(html) {
-            document.getElementById('mainContent').innerHTML = html;
-            const bsOffcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('studentSidebar'));
-            if(bsOffcanvas) bsOffcanvas.hide(); 
-        }
-
-        // ==========================================
-        // 4. Admin Module
-        // ==========================================
-        async function loadAdminData() {
-            if(!globalData.classes) globalData.classes = await callAPI('getClasses');
-            if(!globalData.teachers) globalData.teachers = await callAPI('getTeachers');
-            if(!globalData.subjects) globalData.subjects = await callAPI('getSubjects');
-        }
-
-        async function showAdminMenu(menu) {
-            showLoading();
-            await loadAdminData(); 
-            document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
-            if(event && event.currentTarget) event.currentTarget.classList.add('active');
-
-            let html = '';
-            if (menu === 'subject') {
-                const subjects = await callAPI('getSubjects');
-                html = `
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="text-primary"><i class="fa-solid fa-book"></i> จัดการรายวิชา</h4>
-                        <button class="btn btn-primary" onclick="openSubjectModal()"><i class="fa-solid fa-plus"></i> เพิ่มรายวิชา</button>
-                    </div>
-                    <div class="card p-3 table-responsive">
-                        <table class="table table-hover table-custom">
-                            <thead><tr><th>รหัสวิชา</th><th>ชื่อวิชา</th><th>ประเภท</th><th>หน่วยกิต</th><th>ชั้น</th><th>ห้อง</th><th>จัดการ</th></tr></thead>
-                            <tbody>${subjects.map(s => `<tr>
-                                <td>${s.SubjectCode}</td><td>${s.SubjectName}</td><td>${s.Type}</td><td>${s.Credit}</td><td>ม.${s.GradeLevel}</td><td>${s.Room}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-warning" onclick='openSubjectModal(${JSON.stringify(s)})'><i class="fa-solid fa-edit"></i></button>
-                                    <button class="btn btn-sm btn-danger" onclick="deleteRecord('deleteSubject', '${s.ID}', 'showAdminMenu(\\'subject\\')')"><i class="fa-solid fa-trash"></i></button>
-                                </td></tr>`).join('')}</tbody>
-                        </table>
-                    </div>`;
-            } else if (menu === 'student') {
-                const students = await callAPI('getStudents');
-                html = `
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="text-primary"><i class="fa-solid fa-users"></i> ทะเบียนนักเรียน</h4>
-                        <div>
-                            <button class="btn btn-outline-success me-2" onclick="downloadCSVTemplate()"><i class="fa-solid fa-download"></i> โหลดเทมเพลต CSV</button>
-                            <button class="btn btn-success me-2" onclick="document.getElementById('csvFileInput').click()"><i class="fa-solid fa-file-csv"></i> นำเข้า CSV</button>
-                            <input type="file" id="csvFileInput" class="hidden" accept=".csv" onchange="handleCSVUpload(event)">
-                            <button class="btn btn-primary" onclick="openStudentModal()"><i class="fa-solid fa-user-plus"></i> เพิ่มนักเรียน</button>
-                        </div>
-                    </div>
-                    <div class="card p-3 table-responsive">
-                        <table class="table table-hover table-custom" id="studentTable">
-                            <thead><tr><th>รหัสประจำตัว</th><th>ชื่อ-สกุล</th><th>ชั้น</th><th>ห้อง</th><th>จัดการ</th></tr></thead>
-                            <tbody>${students.map(s => `<tr>
-                                <td>${s.StudentID}</td><td>${s.Prefix}${s.FirstName} ${s.LastName}</td><td>ม.${s.GradeLevel}</td><td>${s.Room}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-warning" onclick='openStudentModal(${JSON.stringify(s)})'><i class="fa-solid fa-edit"></i></button>
-                                    <button class="btn btn-sm btn-danger" onclick="deleteRecord('deleteStudent', '${s.ID}', 'showAdminMenu(\\'student\\')')"><i class="fa-solid fa-trash"></i></button>
-                                </td></tr>`).join('')}</tbody>
-                        </table>
-                    </div>`;
-            } else if (menu === 'class') {
-                const classes = await callAPI('getClasses');
-                html = `
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="text-primary"><i class="fa-solid fa-chalkboard-user"></i> จัดการระดับชั้น</h4>
-                        <button class="btn btn-primary" onclick="openClassModal()"><i class="fa-solid fa-plus"></i> เพิ่มระดับชั้น</button>
-                    </div>
-                    <div class="card p-3 table-responsive">
-                        <table class="table table-hover table-custom">
-                            <thead><tr><th>ระดับชั้น</th><th>ห้อง</th><th>ครูที่ปรึกษา 1</th><th>ครูที่ปรึกษา 2</th><th>จัดการ</th></tr></thead>
-                            <tbody>${classes.map(c => {
-                                let t1 = globalData.teachers.find(t => t.ID == c.Teacher1ID);
-                                let t2 = globalData.teachers.find(t => t.ID == c.Teacher2ID);
-                                return `<tr>
-                                <td>ม.${c.GradeLevel}</td><td>${c.Room}</td>
-                                <td>${t1 ? t1.FirstName+' '+t1.LastName : '-'}</td><td>${t2 ? t2.FirstName+' '+t2.LastName : '-'}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-warning" onclick='openClassModal(${JSON.stringify(c)})'><i class="fa-solid fa-edit"></i></button>
-                                    <button class="btn btn-sm btn-danger" onclick="deleteRecord('deleteClass', '${c.ID}', 'showAdminMenu(\\'class\\')')"><i class="fa-solid fa-trash"></i></button>
-                                </td></tr>`;
-                            }).join('')}</tbody>
-                        </table>
-                    </div>`;
-            } else if (menu === 'teacher') {
-                const teachers = await callAPI('getTeachers');
-                html = `
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="text-primary"><i class="fa-solid fa-user-tie"></i> ทะเบียนคุณครู</h4>
-                        <button class="btn btn-primary" onclick="openTeacherModal()"><i class="fa-solid fa-plus"></i> เพิ่มคุณครู</button>
-                    </div>
-                    <div class="card p-3 table-responsive">
-                        <table class="table table-hover table-custom">
-                            <thead><tr><th>ชื่อ-สกุล</th><th>เบอร์โทรศัพท์</th><th>ชื่อผู้ใช้</th><th>จัดการ</th></tr></thead>
-                            <tbody>${teachers.map(t => `<tr>
-                                <td>${t.Prefix}${t.FirstName} ${t.LastName}</td><td>${t.Phone}</td><td>${t.Username}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-warning" onclick='openTeacherModal(${JSON.stringify(t)})'><i class="fa-solid fa-edit"></i></button>
-                                    <button class="btn btn-sm btn-danger" onclick="deleteRecord('deleteTeacher', '${t.ID}', 'showAdminMenu(\\'teacher\\')')"><i class="fa-solid fa-trash"></i></button>
-                                </td></tr>`).join('')}</tbody>
-                        </table>
-                    </div>`;
-            } else if (menu === 'assignment') {
-                const assigns = await callAPI('getAssignments');
-                html = `
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="text-primary"><i class="fa-solid fa-tasks"></i> มอบหมายภาระงานสอน</h4>
-                        <button class="btn btn-primary" onclick="openAssignModal()"><i class="fa-solid fa-plus"></i> มอบหมายงาน</button>
-                    </div>
-                    <div class="card p-3 table-responsive">
-                        <table class="table table-hover table-custom">
-                            <thead><tr><th>คุณครู</th><th>วิชา</th><th>ชั้น/ห้อง</th><th>จัดการ</th></tr></thead>
-                            <tbody>${assigns.map(a => {
-                                let t = globalData.teachers.find(x => x.ID == a.TeacherID);
-                                let s = globalData.subjects.find(x => x.ID == a.SubjectID);
-                                return `<tr>
-                                <td>${t ? t.FirstName+' '+t.LastName : '-'}</td><td>${s ? s.SubjectName : '-'}</td><td>ม.${a.GradeLevel}/${a.Room}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-danger" onclick="deleteRecord('deleteAssignment', '${a.ID}', 'showAdminMenu(\\'assignment\\')')"><i class="fa-solid fa-trash"></i></button>
-                                </td></tr>`;
-                            }).join('')}</tbody>
-                        </table>
-                    </div>`;
-            } else if (menu.startsWith('settings')) {
-                adminSettings = await callAPI('getSettings');
-                if (menu === 'settingsTeacher') {
-                    html = buildSettingsForm('ระบบคุณครู', [
-                        { id: 'teacher_open_time', label: 'เวลาเปิดให้กรอกคะแนน', type: 'datetime-local', val: adminSettings.teacher_open_time },
-                        { id: 'teacher_close_time', label: 'เวลาปิดให้กรอกคะแนน', type: 'datetime-local', val: adminSettings.teacher_close_time },
-                        { id: 'teacher_is_open', label: 'เปิดใช้งานทันที (ละเว้นเวลา)', type: 'select', options: [{v:'true',t:'เปิด'},{v:'false',t:'ปิดตามเวลา'}], val: adminSettings.teacher_is_open }
-                    ]);
-                } else if (menu === 'settingsStudent') {
-                    html = buildSettingsForm('ระบบนักเรียน', [
-                        { id: 'student_open_time', label: 'เวลาเปิดให้ดูผลการเรียน', type: 'datetime-local', val: adminSettings.student_open_time },
-                        { id: 'student_close_time', label: 'เวลาปิดให้ดูผลการเรียน', type: 'datetime-local', val: adminSettings.student_close_time },
-                        { id: 'student_is_open', label: 'เปิดใช้งานทันที (ละเว้นเวลา)', type: 'select', options: [{v:'true',t:'เปิด'},{v:'false',t:'ปิดตามเวลา'}], val: adminSettings.student_is_open }
-                    ]);
-                } else if (menu === 'settingsSystem') {
-                    let defaultJson = JSON.stringify({
-                        "4": { min: 80, max: 100 }, "3.5": { min: 75, max: 79 }, "3": { min: 70, max: 74 },
-                        "2.5": { min: 65, max: 69 }, "2": { min: 60, max: 64 }, "1.5": { min: 55, max: 59 },
-                        "1": { min: 50, max: 54 }, "0": { min: 0, max: 49 }
-                    }, null, 2);
-                    html = `
-                    <h4 class="text-primary mb-4"><i class="fa-solid fa-sliders"></i> ตั้งค่าเกณฑ์คะแนน (JSON)</h4>
-                    <div class="card p-4">
-                        <textarea class="form-control mb-3" id="grade_criteria" rows="10" style="font-family:monospace;">${adminSettings.grade_criteria || defaultJson}</textarea>
-                        <button class="btn btn-primary" onclick="saveSettings(['grade_criteria'])"><i class="fa-solid fa-save"></i> บันทึกตั้งค่า</button>
-                    </div>`;
-                }
-            }
-            renderMainContent(html);
-            hideLoading();
-        }
-
-        function buildSettingsForm(title, fields) {
-            let formHtml = `<h4 class="text-primary mb-4"><i class="fa-solid fa-cogs"></i> ตั้งค่า${title}</h4><div class="card p-4"><form id="settingsForm">`;
-            let fieldIds = [];
-            fields.forEach(f => {
-                fieldIds.push(f.id);
-                formHtml += `<div class="mb-3"><label class="form-label">${f.label}</label>`;
-                if(f.type === 'select') {
-                    formHtml += `<select class="form-select" id="${f.id}">`;
-                    f.options.forEach(o => formHtml += `<option value="${o.v}" ${f.val===o.v?'selected':''}>${o.t}</option>`);
-                    formHtml += `</select>`;
-                } else {
-                    formHtml += `<input type="${f.type}" class="form-control" id="${f.id}" value="${f.val || ''}">`;
-                }
-                formHtml += `</div>`;
-            });
-            formHtml += `<button type="button" class="btn btn-primary mt-3" onclick="saveSettings(['${fieldIds.join("','")}'])"><i class="fa-solid fa-save"></i> บันทึกตั้งค่า</button></form></div>`;
-            return formHtml;
-        }
-
-        async function saveSettings(keys) {
-            showLoading();
-            let data = {};
-            keys.forEach(k => data[k] = document.getElementById(k).value);
-            try {
-                await callAPI('saveSettings', data);
-                Swal.fire('สำเร็จ', 'บันทึกการตั้งค่าเรียบร้อย', 'success');
-            } catch(e) {}
-            hideLoading();
-        }
-
-        async function deleteRecord(action, id, callbackStr) {
-            const res = await Swal.fire({ title: 'ยืนยันการลบ?', text: "ข้อมูลนี้จะถูกลบถาวร!", icon: 'warning', showCancelButton: true, confirmButtonText: 'ใช่, ลบเลย!', cancelButtonText: 'ยกเลิก' });
-            if(res.isConfirmed) {
-                showLoading();
-                try {
-                    await callAPI(action, {id: id});
-                    Swal.fire('ลบสำเร็จ!', '', 'success');
-                    eval(callbackStr);
-                } catch(e){}
+                
+                initDashboard();
+            } catch (error) {
                 hideLoading();
             }
         }
 
-        function setGenericModal(title, bodyHtml, saveFuncStr) {
-            document.getElementById('genericModalTitle').innerText = title;
-            document.getElementById('genericModalBody').innerHTML = bodyHtml;
-            document.getElementById('genericModalFooter').innerHTML = `
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-                <button type="button" class="btn btn-primary" onclick="${saveFuncStr}">บันทึกข้อมูล</button>
-            `;
-            new bootstrap.Modal(document.getElementById('genericModal')).show();
-        }
-        function closeGenericModal() { bootstrap.Modal.getInstance(document.getElementById('genericModal')).hide(); }
-
-        function openSubjectModal(data = null) {
-            currentEditingId = data ? data.ID : null;
-            let h = `
-                <div class="row g-3">
-                    <div class="col-md-4"><label>รหัสวิชา</label><input type="text" class="form-control" id="mSubCode" value="${data?data.SubjectCode:''}"></div>
-                    <div class="col-md-8"><label>ชื่อวิชา</label><input type="text" class="form-control" id="mSubName" value="${data?data.SubjectName:''}"></div>
-                    <div class="col-md-4"><label>หน่วยกิต</label><input type="number" step="0.5" class="form-control" id="mSubCredit" value="${data?data.Credit:''}"></div>
-                    <div class="col-md-4"><label>ประเภท</label><select class="form-select" id="mSubType">
-                        <option value="พื้นฐาน" ${data&&data.Type=='พื้นฐาน'?'selected':''}>พื้นฐาน</option>
-                        <option value="เพิ่มเติม" ${data&&data.Type=='เพิ่มเติม'?'selected':''}>เพิ่มเติม</option>
-                        <option value="กิจกรรมพัฒนาผู้เรียน" ${data&&data.Type=='กิจกรรมพัฒนาผู้เรียน'?'selected':''}>กิจกรรมพัฒนาผู้เรียน</option>
-                    </select></div>
-                    <div class="col-md-2"><label>ระดับชั้น ม.</label><input type="number" class="form-control" id="mSubGrade" value="${data?data.GradeLevel:''}"></div>
-                    <div class="col-md-2"><label>ห้อง</label><input type="text" class="form-control" id="mSubRoom" value="${data?data.Room:'รวม'}"></div>
-                </div>`;
-            setGenericModal(data ? 'แก้ไขรายวิชา' : 'เพิ่มรายวิชา', h, 'submitSubjectModal()');
-        }
-        async function submitSubjectModal() {
-            let payload = {
-                ID: currentEditingId, SubjectCode: document.getElementById('mSubCode').value,
-                SubjectName: document.getElementById('mSubName').value, Credit: document.getElementById('mSubCredit').value,
-                Type: document.getElementById('mSubType').value, GradeLevel: document.getElementById('mSubGrade').value, Room: document.getElementById('mSubRoom').value
-            };
-            showLoading();
-            try { await callAPI('saveSubject', payload); closeGenericModal(); showAdminMenu('subject'); } catch(e){}
-            hideLoading();
+        function handleLogout() {
+            localStorage.removeItem('schoolnext_user');
+            currentUser = null;
+            document.getElementById('dashboard-view').style.display = 'none';
+            document.getElementById('login-view').style.display = 'flex';
+            document.getElementById('login-form').reset();
+            // ไม่มีรีเฟรชหน้าเว็บ
         }
 
-        function openStudentModal(data = null) {
-            currentEditingId = data ? data.ID : null;
-            let h = `
-                <div class="row g-3">
-                    <div class="col-md-4"><label>รหัสประจำตัว</label><input type="text" class="form-control" id="mStID" value="${data?data.StudentID:''}"></div>
-                    <div class="col-md-8"><label>เลขบัตรประชาชน (รหัสผ่าน)</label><input type="text" class="form-control" id="mStCard" value="${data?data.IDCard:''}"></div>
-                    <div class="col-md-3"><label>คำนำหน้า</label><input type="text" class="form-control" id="mStPrefix" value="${data?data.Prefix:''}"></div>
-                    <div class="col-md-4"><label>ชื่อ</label><input type="text" class="form-control" id="mStFName" value="${data?data.FirstName:''}"></div>
-                    <div class="col-md-5"><label>สกุล</label><input type="text" class="form-control" id="mStLName" value="${data?data.LastName:''}"></div>
-                    <div class="col-md-6"><label>ระดับชั้น ม.</label><input type="number" class="form-control" id="mStGrade" value="${data?data.GradeLevel:''}"></div>
-                    <div class="col-md-6"><label>ห้อง</label><input type="number" class="form-control" id="mStRoom" value="${data?data.Room:''}"></div>
-                </div>`;
-            setGenericModal(data ? 'แก้ไขนักเรียน' : 'เพิ่มนักเรียน', h, 'submitStudentModal()');
-        }
-        async function submitStudentModal() {
-            let p = { ID: currentEditingId, StudentID: document.getElementById('mStID').value, IDCard: document.getElementById('mStCard').value,
-                Prefix: document.getElementById('mStPrefix').value, FirstName: document.getElementById('mStFName').value,
-                LastName: document.getElementById('mStLName').value, GradeLevel: document.getElementById('mStGrade').value, Room: document.getElementById('mStRoom').value };
-            showLoading();
-            try { await callAPI('saveStudent', p); closeGenericModal(); showAdminMenu('student'); } catch(e){}
-            hideLoading();
-        }
-
-        function openClassModal(data = null) {
-            currentEditingId = data ? data.ID : null;
-            let tOpts = `<option value="">-- ไม่ระบุ --</option>` + globalData.teachers.map(t => `<option value="${t.ID}">${t.FirstName} ${t.LastName}</option>`).join('');
-            let h = `
-                <div class="row g-3">
-                    <div class="col-md-6"><label>ระดับชั้น ม.</label><input type="number" class="form-control" id="mClGrade" value="${data?data.GradeLevel:''}"></div>
-                    <div class="col-md-6"><label>ห้อง</label><input type="number" class="form-control" id="mClRoom" value="${data?data.Room:''}"></div>
-                    <div class="col-md-6"><label>ครูที่ปรึกษา 1</label><select class="form-select" id="mClT1">${tOpts}</select></div>
-                    <div class="col-md-6"><label>ครูที่ปรึกษา 2</label><select class="form-select" id="mClT2">${tOpts}</select></div>
-                </div>`;
-            setGenericModal(data ? 'แก้ไขระดับชั้น' : 'เพิ่มระดับชั้น', h, 'submitClassModal()');
-            if(data) {
-                setTimeout(() => { document.getElementById('mClT1').value = data.Teacher1ID; document.getElementById('mClT2').value = data.Teacher2ID; }, 100);
+        function checkAutoLogin() {
+            const saved = localStorage.getItem('schoolnext_user');
+            if(saved) {
+                currentUser = JSON.parse(saved);
+                initDashboard();
             }
         }
-        async function submitClassModal() {
-            let p = { ID: currentEditingId, GradeLevel: document.getElementById('mClGrade').value, Room: document.getElementById('mClRoom').value,
-                Teacher1ID: document.getElementById('mClT1').value, Teacher2ID: document.getElementById('mClT2').value };
-            showLoading();
-            try { await callAPI('saveClass', p); globalData.classes = null; closeGenericModal(); showAdminMenu('class'); } catch(e){}
-            hideLoading();
+
+        /**
+         * ============================================================================
+         * ระบบจัดการ UI หลัก (เมนู และ การนำทาง)
+         * ============================================================================
+         */
+        function toggleMobileMenu() {
+            document.getElementById('sidebar').classList.toggle('show');
         }
 
-        function openTeacherModal(data = null) {
-            currentEditingId = data ? data.ID : null;
-            let h = `
-                <div class="row g-3">
-                    <div class="col-md-3"><label>คำนำหน้า</label><input type="text" class="form-control" id="mTcPrefix" value="${data?data.Prefix:''}"></div>
-                    <div class="col-md-4"><label>ชื่อ</label><input type="text" class="form-control" id="mTcFName" value="${data?data.FirstName:''}"></div>
-                    <div class="col-md-5"><label>สกุล</label><input type="text" class="form-control" id="mTcLName" value="${data?data.LastName:''}"></div>
-                    <div class="col-md-12"><label>เบอร์โทรศัพท์</label><input type="text" class="form-control" id="mTcPhone" value="${data?data.Phone:''}"></div>
-                    <div class="col-md-6"><label>ชื่อผู้ใช้ (เข้าระบบ)</label><input type="text" class="form-control" id="mTcUser" value="${data?data.Username:''}"></div>
-                    <div class="col-md-6"><label>รหัสผ่าน</label><input type="text" class="form-control" id="mTcPass" value="${data?data.Password:''}"></div>
-                </div>`;
-            setGenericModal(data ? 'แก้ไขคุณครู' : 'เพิ่มคุณครู', h, 'submitTeacherModal()');
-        }
-        async function submitTeacherModal() {
-            let p = { ID: currentEditingId, Prefix: document.getElementById('mTcPrefix').value, FirstName: document.getElementById('mTcFName').value,
-                LastName: document.getElementById('mTcLName').value, Phone: document.getElementById('mTcPhone').value,
-                Username: document.getElementById('mTcUser').value, Password: document.getElementById('mTcPass').value };
-            showLoading();
-            try { await callAPI('saveTeacher', p); globalData.teachers = null; closeGenericModal(); showAdminMenu('teacher'); } catch(e){}
-            hideLoading();
+        function initDashboard() {
+            document.getElementById('login-view').style.display = 'none';
+            document.getElementById('dashboard-view').style.display = 'flex';
+            document.getElementById('user-display-name').innerHTML = `<i class="fas fa-user-circle"></i> ${currentUser.name}`;
+            renderSidebar();
         }
 
-        function openAssignModal() {
-            let tOpts = globalData.teachers.map(t => `<option value="${t.ID}">${t.FirstName} ${t.LastName}</option>`).join('');
-            let sOpts = globalData.subjects.map(s => `<option value="${s.ID}">${s.SubjectCode} ${s.SubjectName} (ม.${s.GradeLevel})</option>`).join('');
-            let cOpts = globalData.classes.map(c => `<option value="${c.GradeLevel}|${c.Room}">ม.${c.GradeLevel} ห้อง ${c.Room}</option>`).join('');
-            let h = `
-                <div class="mb-3"><label>เลือกคุณครู</label><select class="form-select" id="mAsT">${tOpts}</select></div>
-                <div class="mb-3"><label>เลือกวิชา</label><select class="form-select" id="mAsS">${sOpts}</select></div>
-                <div class="mb-3"><label>เลือกระดับชั้นและห้องสอน</label><select class="form-select" id="mAsC">${cOpts}</select></div>
+        function renderSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.innerHTML = '';
+            
+            let menus = [];
+            if (currentUser.role === 'admin') {
+                menus = [
+                    { id: 'admin_dashboard', icon: 'fa-home', text: 'หน้าแรก' },
+                    { id: 'admin_subjects', icon: 'fa-book', text: 'เมนูรายวิชา' },
+                    { id: 'admin_students', icon: 'fa-users', text: 'เมนูทะเบียนนักเรียน' },
+                    { id: 'admin_classes', icon: 'fa-chalkboard', text: 'เมนูระดับชั้น' },
+                    { id: 'admin_teachers', icon: 'fa-chalkboard-teacher', text: 'เมนูทะเบียนคุณครู' },
+                    { id: 'admin_assignments', icon: 'fa-tasks', text: 'เมนูมอบหมายภาระงาน' },
+                    { id: 'admin_settings', icon: 'fa-cogs', text: 'เมนูตั้งค่าระบบ' }
+                ];
+            } else if (currentUser.role === 'teacher') {
+                menus = [
+                    { id: 'teacher_scores', icon: 'fa-edit', text: 'เมนูบันทึกคะแนน' },
+                    { id: 'teacher_requests', icon: 'fa-envelope-open-text', text: 'เมนูคำร้องขอแก้ตัว' }
+                ];
+            } else if (currentUser.role === 'student') {
+                menus = [
+                    { id: 'student_summary', icon: 'fa-graduation-cap', text: 'ผลการเรียนเฉลี่ย' },
+                    { id: 'student_scores', icon: 'fa-chart-bar', text: 'คะแนนเก็บ' },
+                    { id: 'student_history', icon: 'fa-history', text: 'ประวัติคำร้องขอแก้ตัว' }
+                ];
+            }
+
+            menus.forEach((m, idx) => {
+                const div = document.createElement('div');
+                div.className = `menu-item ${idx === 0 ? 'active' : ''}`;
+                div.innerHTML = `<i class="fas ${m.icon}"></i> ${m.text}`;
+                div.onclick = () => {
+                    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+                    div.classList.add('active');
+                    if(window.innerWidth <= 768) toggleMobileMenu();
+                    loadPage(m.id);
+                };
+                sidebar.appendChild(div);
+            });
+
+            // Load first page by default
+            if(menus.length > 0) loadPage(menus[0].id);
+        }
+
+        function loadPage(pageId) {
+            const content = document.getElementById('content-area');
+            content.innerHTML = ''; // Clear old content
+            
+            // Router
+            switch(pageId) {
+                // Admin
+                case 'admin_dashboard': renderAdminDashboard(content); break;
+                case 'admin_subjects': loadAdminSubjects(content); break;
+                case 'admin_students': loadAdminStudents(content); break;
+                case 'admin_classes': loadAdminClasses(content); break;
+                case 'admin_teachers': loadAdminTeachers(content); break;
+                case 'admin_assignments': loadAdminAssignments(content); break;
+                case 'admin_settings': loadAdminSettings(content); break;
+                
+                // Teacher
+                case 'teacher_scores': loadTeacherScores(content); break;
+                case 'teacher_requests': loadTeacherRequests(content); break;
+                
+                // Student
+                case 'student_summary': loadStudentSummary(content); break;
+                case 'student_scores': loadStudentScores(content); break;
+                case 'student_history': loadStudentHistory(content); break;
+            }
+        }
+
+        /**
+         * ============================================================================
+         * โมดูล: ผู้จัดการระบบ (Admin)
+         * ============================================================================
+         */
+        function renderAdminDashboard(container) {
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header"><h3>ยินดีต้อนรับ ผู้จัดการระบบ</h3></div>
+                    <p>กรุณาเลือกเมนูทางด้านซ้ายเพื่อจัดการระบบ SchooLNext</p>
+                </div>
             `;
-            setGenericModal('มอบหมายภาระงาน', h, 'submitAssignModal()');
-        }
-        async function submitAssignModal() {
-            let classVal = document.getElementById('mAsC').value.split('|');
-            let p = { TeacherID: document.getElementById('mAsT').value, SubjectID: document.getElementById('mAsS').value,
-                GradeLevel: classVal[0], Room: classVal[1] };
-            showLoading();
-            try { await callAPI('saveAssignment', p); closeGenericModal(); showAdminMenu('assignment'); } catch(e){}
-            hideLoading();
         }
 
-        function handleCSVUpload(e) {
-            const file = e.target.files[0];
+        // --- เมนูรายวิชา ---
+        async function loadAdminSubjects(container) {
+            showLoading();
+            const res = await apiCall({ action: 'getSubjects' });
+            hideLoading();
+            
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <h3>จัดการรายวิชา</h3>
+                        <button class="btn btn-success" onclick="showSubjectForm()"><i class="fas fa-plus"></i> เพิ่มรายวิชา</button>
+                    </div>
+                    <div id="subject-form-container" style="display:none; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 5px; border: 1px solid #e2e8f0;"></div>
+                    <table id="subjects-table">
+                        <thead>
+                            <tr>
+                                <th>รหัสวิชา</th><th>ชื่อวิชา</th><th>ประเภท</th><th>หน่วยกิต</th><th>ระดับชั้น</th><th>ห้อง</th><th>จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${res.subjects.map(s => `
+                                <tr>
+                                    <td class="text-center">${s.code}</td><td>${s.name}</td><td class="text-center">${s.type}</td>
+                                    <td class="text-center">${s.credit}</td><td class="text-center">ม.${s.grade_level}</td><td class="text-center">${s.rooms}</td>
+                                    <td class="text-center action-btns">
+                                        <button class="btn btn-warning" onclick='editSubject(${JSON.stringify(s)})'><i class="fas fa-edit"></i></button>
+                                        <button class="btn btn-danger" onclick="deleteRecord('deleteSubject', '${s.id}', loadAdminSubjects)"><i class="fas fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        window.showSubjectForm = (data = null) => {
+            const container = document.getElementById('subject-form-container');
+            container.style.display = 'block';
+            container.innerHTML = `
+                <h4>${data ? 'แก้ไขรายวิชา' : 'เพิ่มรายวิชาใหม่'}</h4>
+                <form onsubmit="event.preventDefault(); saveSubject('${data ? data.id : ''}');" class="grid-form">
+                    <div class="input-group"><label>รหัสวิชา</label><input type="text" id="sub_code" value="${data ? data.code : ''}" required></div>
+                    <div class="input-group"><label>ชื่อวิชา</label><input type="text" id="sub_name" value="${data ? data.name : ''}" required></div>
+                    <div class="input-group"><label>ประเภทรายวิชา</label>
+                        <select id="sub_type">
+                            <option value="พื้นฐาน" ${data && data.type=='พื้นฐาน'?'selected':''}>พื้นฐาน</option>
+                            <option value="เพิ่มเติม" ${data && data.type=='เพิ่มเติม'?'selected':''}>เพิ่มเติม</option>
+                            <option value="กิจกรรมพัฒนาผู้เรียน" ${data && data.type=='กิจกรรมพัฒนาผู้เรียน'?'selected':''}>กิจกรรมพัฒนาผู้เรียน</option>
+                        </select>
+                    </div>
+                    <div class="input-group"><label>หน่วยกิต</label><input type="number" step="0.5" id="sub_credit" value="${data ? data.credit : ''}" required></div>
+                    <div class="input-group"><label>ระดับชั้น (มัธยมศึกษาปีที่)</label><input type="number" id="sub_grade" value="${data ? data.grade_level : ''}" required min="1" max="6"></div>
+                    <div class="input-group"><label>ห้อง (คั่นด้วยคอมม่า เช่น 1,2,3)</label><input type="text" id="sub_rooms" value="${data ? data.rooms : ''}" required></div>
+                    <div class="full-width action-btns">
+                        <button type="submit" class="btn btn-success">บันทึก</button>
+                        <button type="button" class="btn btn-danger" onclick="document.getElementById('subject-form-container').style.display='none'">ยกเลิก</button>
+                    </div>
+                </form>
+            `;
+        }
+        window.editSubject = (data) => showSubjectForm(data);
+        window.saveSubject = async (id) => {
+            const payload = {
+                id: id, code: document.getElementById('sub_code').value, name: document.getElementById('sub_name').value,
+                type: document.getElementById('sub_type').value, credit: document.getElementById('sub_credit').value,
+                grade_level: document.getElementById('sub_grade').value, rooms: document.getElementById('sub_rooms').value
+            };
+            showLoading();
+            await apiCall({ action: 'saveSubject', subjectData: payload });
+            hideLoading();
+            Swal.fire('สำเร็จ', 'บันทึกรายวิชาเรียบร้อย', 'success');
+            loadAdminSubjects(document.getElementById('content-area'));
+        }
+
+        // --- เมนูทะเบียนระดับชั้น ---
+        async function loadAdminClasses(container) {
+            showLoading();
+            const res = await apiCall({ action: 'getClasses' });
+            const tRes = await apiCall({ action: 'getTeachers' });
+            globalData.teachers = tRes.teachers;
+            hideLoading();
+
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <h3>จัดการระดับชั้น</h3>
+                        <button class="btn btn-success" onclick="showClassForm()"><i class="fas fa-plus"></i> เพิ่มระดับชั้น</button>
+                    </div>
+                    <div id="class-form-container" style="display:none; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 5px; border: 1px solid #e2e8f0;"></div>
+                    <table>
+                        <thead><tr><th class="text-center">มัธยมศึกษาปีที่</th><th class="text-center">ห้อง</th><th>ครูที่ปรึกษา 1</th><th>ครูที่ปรึกษา 2</th><th class="text-center">จัดการ</th></tr></thead>
+                        <tbody>
+                            ${res.classes.map(c => `
+                                <tr>
+                                    <td class="text-center">${c.grade_level}</td><td class="text-center">${c.room}</td>
+                                    <td>${c.advisor1_info ? c.advisor1_info.prefix+c.advisor1_info.fullname : '-'}</td>
+                                    <td>${c.advisor2_info ? c.advisor2_info.prefix+c.advisor2_info.fullname : '-'}</td>
+                                    <td class="text-center action-btns">
+                                        <button class="btn btn-warning" onclick='editClass(${JSON.stringify(c)})'><i class="fas fa-edit"></i></button>
+                                        <button class="btn btn-danger" onclick="deleteRecord('deleteClass', '${c.id}', loadAdminClasses)"><i class="fas fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        window.showClassForm = (data = null) => {
+            const tOptions = `<option value="">-- ไม่ระบุ --</option>` + globalData.teachers.map(t => `<option value="${t.id}">${t.prefix}${t.fullname}</option>`).join('');
+            
+            document.getElementById('class-form-container').style.display = 'block';
+            document.getElementById('class-form-container').innerHTML = `
+                <form onsubmit="event.preventDefault(); saveClass('${data ? data.id : ''}');" class="grid-form">
+                    <div class="input-group"><label>ระดับชั้น ม.</label><input type="number" id="cls_grade" value="${data ? data.grade_level : ''}" required></div>
+                    <div class="input-group"><label>ห้อง</label><input type="number" id="cls_room" value="${data ? data.room : ''}" required></div>
+                    <div class="input-group"><label>ครูที่ปรึกษา 1</label><select id="cls_adv1">${tOptions}</select></div>
+                    <div class="input-group"><label>ครูที่ปรึกษา 2</label><select id="cls_adv2">${tOptions}</select></div>
+                    <div class="full-width action-btns">
+                        <button type="submit" class="btn btn-success">บันทึก</button>
+                        <button type="button" class="btn btn-danger" onclick="document.getElementById('class-form-container').style.display='none'">ยกเลิก</button>
+                    </div>
+                </form>
+            `;
+            if(data) {
+                document.getElementById('cls_adv1').value = data.advisor1_id;
+                document.getElementById('cls_adv2').value = data.advisor2_id;
+            }
+        }
+        window.editClass = (data) => showClassForm(data);
+        window.saveClass = async (id) => {
+            const payload = {
+                id: id, grade_level: document.getElementById('cls_grade').value, room: document.getElementById('cls_room').value,
+                advisor1_id: document.getElementById('cls_adv1').value, advisor2_id: document.getElementById('cls_adv2').value
+            };
+            showLoading(); await apiCall({ action: 'saveClass', classData: payload }); hideLoading();
+            Swal.fire('สำเร็จ', 'บันทึกระดับชั้นเรียบร้อย', 'success');
+            loadAdminClasses(document.getElementById('content-area'));
+        }
+
+        // --- เมนูทะเบียนนักเรียน (Import CSV & สลับลำดับ) ---
+        let currentCsvStudents = [];
+        async function loadAdminStudents(container) {
+            const csvTemplateContent = "รหัสประจำตัว,คำนำหน้า,ชื่อ,สกุล,เลขบัตรประจำตัวนักเรียน\n12345,เด็กชาย,ใจดี,เรียนเก่ง,1101234567890";
+            const encodedUri = encodeURI("data:text/csv;charset=utf-8,\uFEFF" + csvTemplateContent); // BOM for Excel TH
+
+            showLoading();
+            const cRes = await apiCall({ action: 'getClasses' });
+            globalData.classes = cRes.classes;
+            hideLoading();
+
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header">
+                        <h3>ทะเบียนนักเรียน (นำเข้า CSV)</h3>
+                        <a href="${encodedUri}" download="template_students.csv" class="btn btn-warning"><i class="fas fa-download"></i> โหลดไฟล์เทมเพลต CSV</a>
+                    </div>
+                    
+                    <div class="grid-form" style="margin-bottom: 20px;">
+                        <div class="input-group">
+                            <label>เลือกระดับชั้น</label>
+                            <select id="import_class_select">
+                                <option value="">-- เลือกชั้นและห้อง --</option>
+                                ${globalData.classes.map(c => `<option value="${c.grade_level}|${c.room}">ม.${c.grade_level}/${c.room}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>อัพโหลดไฟล์ CSV</label>
+                            <input type="file" id="csv_file" accept=".csv" onchange="handleCSVUpload(event)">
+                        </div>
+                    </div>
+
+                    <div id="csv-preview-area" style="display:none;">
+                        <h4>ตัวอย่างข้อมูล (สามารถกด ขึ้น/ลง เพื่อสลับลำดับเลขที่ก่อนบันทึก)</h4>
+                        <table style="margin-bottom: 15px;">
+                            <thead><tr><th class="text-center">ลำดับ/เลขที่</th><th>รหัสประจำตัว</th><th>ชื่อ-สกุล</th><th>เลขบัตรประจำตัว</th><th class="text-center">สลับตำแหน่ง</th></tr></thead>
+                            <tbody id="csv-preview-body"></tbody>
+                        </table>
+                        <button class="btn btn-success btn-block" onclick="saveImportedStudents()">บันทึกข้อมูลเข้าสู่ระบบ</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.handleCSVUpload = (event) => {
+            const file = event.target.files[0];
             if(!file) return;
             Papa.parse(file, {
                 header: true, skipEmptyLines: true,
                 complete: function(results) {
-                    csvTempData = results.data;
-                    document.getElementById('csvFileInput').value = '';
+                    currentCsvStudents = results.data.map((r, idx) => ({
+                        order_no: idx + 1,
+                        student_id: r['รหัสประจำตัว'], prefix: r['คำนำหน้า'],
+                        firstname: r['ชื่อ'], lastname: r['สกุล'], id_card: r['เลขบัตรประจำตัวนักเรียน']
+                    }));
                     renderCSVPreview();
-                    
-                    let gOpts = [...new Set(globalData.classes.map(c=>c.GradeLevel))].map(g=>`<option value="${g}">ม.${g}</option>`);
-                    let rOpts = [...new Set(globalData.classes.map(c=>c.Room))].map(r=>`<option value="${r}">${r}</option>`);
-                    document.getElementById('csvGradeLevel').innerHTML = gOpts.join('');
-                    document.getElementById('csvRoom').innerHTML = rOpts.join('');
-                    
-                    new bootstrap.Modal(document.getElementById('csvModal')).show();
                 }
             });
         }
-        function renderCSVPreview() {
-            const tbody = document.getElementById('csvPreviewBody');
-            tbody.innerHTML = csvTempData.map((row, index) => `
+
+        window.renderCSVPreview = () => {
+            document.getElementById('csv-preview-area').style.display = 'block';
+            const tbody = document.getElementById('csv-preview-body');
+            tbody.innerHTML = currentCsvStudents.map((s, idx) => `
                 <tr>
-                    <td>${index + 1}</td><td>${row['รหัสประจำตัว']||''}</td><td>${row['คำนำหน้า']||''}</td>
-                    <td>${row['ชื่อ']||''}</td><td>${row['สกุล']||''}</td><td>${row['เลขบัตรประจำตัวนักเรียน']||''}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="moveCSVRow(${index}, -1)" ${index===0?'disabled':''}><i class="fa-solid fa-arrow-up"></i></button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="moveCSVRow(${index}, 1)" ${index===csvTempData.length-1?'disabled':''}><i class="fa-solid fa-arrow-down"></i></button>
+                    <td class="text-center">${idx + 1}</td><td class="text-center">${s.student_id}</td>
+                    <td>${s.prefix}${s.firstname} ${s.lastname}</td><td class="text-center">${s.id_card}</td>
+                    <td class="text-center action-btns">
+                        <button class="btn btn-primary" onclick="swapStudentRow(${idx}, -1)" ${idx === 0 ? 'disabled':''}><i class="fas fa-arrow-up"></i></button>
+                        <button class="btn btn-primary" onclick="swapStudentRow(${idx}, 1)" ${idx === currentCsvStudents.length-1 ? 'disabled':''}><i class="fas fa-arrow-down"></i></button>
                     </td>
                 </tr>
             `).join('');
         }
-        function moveCSVRow(index, dir) {
-            if(index + dir < 0 || index + dir >= csvTempData.length) return;
-            let temp = csvTempData[index];
-            csvTempData[index] = csvTempData[index + dir];
-            csvTempData[index + dir] = temp;
+
+        window.swapStudentRow = (index, dir) => {
+            const temp = currentCsvStudents[index];
+            currentCsvStudents[index] = currentCsvStudents[index + dir];
+            currentCsvStudents[index + dir] = temp;
             renderCSVPreview();
         }
-        async function confirmSaveCSV() {
-            let gl = document.getElementById('csvGradeLevel').value;
-            let rm = document.getElementById('csvRoom').value;
-            let payload = csvTempData.map(r => ({
-                StudentID: r['รหัสประจำตัว'], Prefix: r['คำนำหน้า'], FirstName: r['ชื่อ'],
-                LastName: r['สกุล'], IDCard: r['เลขบัตรประจำตัวนักเรียน'], GradeLevel: gl, Room: rm
-            }));
+
+        window.saveImportedStudents = async () => {
+            const classSelect = document.getElementById('import_class_select').value;
+            if(!classSelect) return Swal.fire('แจ้งเตือน', 'กรุณาเลือกระดับชั้นก่อนบันทึก', 'warning');
+            
+            const [grade, room] = classSelect.split('|');
             showLoading();
-            try {
-                await callAPI('saveMultipleStudents', payload);
-                bootstrap.Modal.getInstance(document.getElementById('csvModal')).hide();
-                showAdminMenu('student');
-                Swal.fire('สำเร็จ', `นำเข้านักเรียน ${payload.length} คน เรียบร้อย`, 'success');
-            } catch(e) {}
+            await apiCall({ action: 'saveStudentsBatch', studentsList: currentCsvStudents, grade_level: grade, room: room });
             hideLoading();
+            Swal.fire('สำเร็จ', 'นำเข้าและบันทึกข้อมูลนักเรียนเรียบร้อย', 'success');
+            document.getElementById('csv-preview-area').style.display = 'none';
+            document.getElementById('csv_file').value = '';
         }
 
-        // ==========================================
-        // 5. Teacher Module
-        // ==========================================
-        async function showTeacherMenu(menu) {
-            showLoading();
-            document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
-            if(event && event.currentTarget) event.currentTarget.classList.add('active');
-
-            let html = '';
-            if (menu === 'scores') {
-                const subjects = await callAPI('getTeacherSubjects', { teacherId: currentUser.refId });
-                let subOpts = `<option value="">-- เลือกวิชาและห้อง --</option>` + 
-                    subjects.map(s => `<option value="${s.subjectId}|${s.gradeLevel}|${s.room}">${s.subjectCode} ${s.subjectName} (ม.${s.gradeLevel}/${s.room})</option>`).join('');
-                html = `
-                    <h4 class="text-primary mb-4"><i class="fa-solid fa-pen-to-square"></i> บันทึกคะแนน</h4>
-                    <div class="row mb-3">
-                        <div class="col-md-8">
-                            <select class="form-select form-select-lg" id="tSelectSubj">${subOpts}</select>
-                        </div>
-                        <div class="col-md-4">
-                            <button class="btn btn-primary btn-lg w-100" onclick="loadTeacherScoreTable()"><i class="fa-solid fa-search"></i> ค้นหา</button>
-                        </div>
+        // --- เมนูทะเบียนคุณครู ---
+        async function loadAdminTeachers(container) {
+            showLoading(); const res = await apiCall({ action: 'getTeachers' }); hideLoading();
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header">
+                        <h3>ทะเบียนคุณครู</h3>
+                        <button class="btn btn-success" onclick="showTeacherForm()"><i class="fas fa-plus"></i> เพิ่มคุณครู</button>
                     </div>
-                    <div id="teacherScoreArea"></div>
-                `;
-            } else if (menu === 'remedial') {
-                const reqs = await callAPI('getTeacherRemedial', { teacherId: currentUser.refId });
-                html = `
-                    <h4 class="text-primary mb-4"><i class="fa-solid fa-envelope-open-text"></i> คำร้องขอแก้ตัว</h4>
-                    <div class="card p-3 table-responsive">
-                        <table class="table table-hover table-custom">
-                            <thead><tr><th>วันที่</th><th>นักเรียน</th><th>วิชา/ห้อง</th><th>ช่องคะแนน</th><th>เหตุผล</th><th>รูปภาพ</th><th>สถานะ</th></tr></thead>
-                            <tbody>${reqs.length===0?'<tr><td colspan="7" class="text-center">ไม่มีคำร้อง</td></tr>':reqs.map(r => `
+                    <div id="teacher-form-container" style="display:none; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 5px; border: 1px solid #e2e8f0;"></div>
+                    <table>
+                        <thead><tr><th>ชื่อ-สกุล</th><th class="text-center">เบอร์โทรศัพท์</th><th>ชื่อผู้ใช้</th><th class="text-center">จัดการ</th></tr></thead>
+                        <tbody>
+                            ${res.teachers.map(t => `
                                 <tr>
-                                    <td>${r.requestDate}</td><td>${r.studentName}</td><td>${r.subjectName} (ม.${r.gradeLevel}/${r.room})</td>
-                                    <td>${r.colName} (เดิม: ${r.oldScore}/${r.maxScore})</td><td>${r.reason}</td>
-                                    <td>${r.imageUrl ? `<a href="${r.imageUrl}" target="_blank" class="btn btn-sm btn-info text-white"><i class="fa-solid fa-image"></i> ดูรูป</a>` : '-'}</td>
-                                    <td><span class="badge ${r.status==='อนุมัติ'?'bg-success':(r.status==='รอตรวจสอบ'?'bg-warning text-dark':'bg-secondary')}">${r.status}</span></td>
+                                    <td>${t.prefix}${t.fullname}</td><td class="text-center">${t.phone}</td><td>${t.username}</td>
+                                    <td class="text-center action-btns">
+                                        <button class="btn btn-warning" onclick='editTeacher(${JSON.stringify(t)})'><i class="fas fa-edit"></i></button>
+                                        <button class="btn btn-danger" onclick="deleteRecord('deleteTeacher', '${t.id}', loadAdminTeachers)"><i class="fas fa-trash"></i></button>
+                                    </td>
                                 </tr>
-                            `).join('')}</tbody>
-                        </table>
-                        <small class="text-muted mt-2">* หมายเหตุ: สถานะจะเปลี่ยนเป็น 'อนุมัติ' อัตโนมัติเมื่อคุณครูกรอกคะแนนช่องนั้นให้นักเรียนผ่านครึ่ง</small>
-                    </div>`;
-            }
-            renderMainContent(html);
-            hideLoading();
-        }
-
-        async function loadTeacherScoreTable() {
-            let sel = document.getElementById('tSelectSubj').value;
-            if(!sel) return Swal.fire('แจ้งเตือน', 'กรุณาเลือกวิชาก่อนค้นหา', 'warning');
-            
-            showLoading();
-            let [subId, gl, rm] = sel.split('|');
-            teacherState.subjectId = subId; teacherState.gradeLevel = gl; teacherState.room = rm;
-            
-            try {
-                const res1 = await callAPI('getStudentsByClass', { gradeLevel: gl, room: rm });
-                const res2 = await callAPI('getScoreColumns', { subjectId: subId, gradeLevel: gl, room: rm });
-                const res3 = await callAPI('getScores', { subjectId: subId, gradeLevel: gl, room: rm });
-                
-                teacherState.students = res1;
-                teacherState.columns = res2;
-                teacherState.scores = res3;
-                
-                renderScoreTable();
-            } catch(e) {}
-            hideLoading();
-        }
-
-        function renderScoreTable() {
-            let area = document.getElementById('teacherScoreArea');
-            let cols = teacherState.columns;
-            let sts = teacherState.students;
-            
-            let thead = `<tr><th rowspan="2" style="width:50px;">ที่</th><th rowspan="2" style="width:200px;">ชื่อ-สกุล</th>`;
-            let subhead = `<tr>`;
-            
-            cols.forEach(c => {
-                let badge = c.ColType==='Midterm'?'<span class="badge bg-warning text-dark">กลางภาค</span>':(c.ColType==='Final'?'<span class="badge bg-danger">ปลายภาค</span>':'');
-                thead += `<th style="min-width:100px;">
-                    <div>${c.ColName} ${badge}</div>
-                    <div class="fw-normal text-warning">เต็ม ${c.MaxScore}</div>
-                    <div class="mt-1">
-                        <div class="form-check form-switch d-inline-block">
-                            <input class="form-check-input cursor-pointer" type="checkbox" title="เปิด/ปิดให้นักเรียนดู" 
-                            ${c.IsVisible==='true'?'checked':''} onchange="toggleColVis('${c.ID}', this.checked)">
-                        </div>
-                        <i class="fa-solid fa-trash text-white cursor-pointer ms-2" onclick="delCol('${c.ID}')" title="ลบช่องนี้"></i>
-                    </div>
-                </th>`;
-            });
-            thead += `<th rowspan="2" class="bg-success">รวม</th></tr>`;
-            
-            let tbody = sts.map((s, index) => {
-                let total = 0;
-                let tr = `<tr><td class="text-center">${index+1}</td><td>${s.Prefix}${s.FirstName} ${s.LastName}</td>`;
-                cols.forEach(c => {
-                    let scoreObj = teacherState.scores.find(sc => sc.StudentID == s.ID && sc.ScoreColID == c.ID);
-                    let val = scoreObj ? scoreObj.ScoreValue : '';
-                    let numVal = parseFloat(val);
-                    if(!isNaN(numVal)) total += numVal;
-                    
-                    let isFail = (!isNaN(numVal) && numVal < parseFloat(c.MaxScore)/2) ? 'cell-fail' : '';
-                    
-                    tr += `<td class="text-center ${isFail}">
-                        <input type="number" class="form-control form-control-sm score-input mx-auto save-trigger" 
-                        data-sid="${s.ID}" data-cid="${c.ID}" value="${val}" max="${c.MaxScore}" onchange="markDirty(this)">
-                    </td>`;
-                });
-                tr += `<td class="text-center fw-bold text-success">${total}</td></tr>`;
-                return tr;
-            }).join('');
-
-            area.innerHTML = `
-                <div class="d-flex justify-content-between mb-2">
-                    <button class="btn btn-outline-primary" onclick="new bootstrap.Modal(document.getElementById('addColumnModal')).show()"><i class="fa-solid fa-plus"></i> เพิ่มช่องคะแนน</button>
-                    <button class="btn btn-success" onclick="saveAllScores()"><i class="fa-solid fa-save"></i> บันทึกคะแนนทั้งหมด</button>
-                </div>
-                <div class="card table-responsive" style="max-height:600px; overflow-y:auto; overflow-x:auto;">
-                    <table class="table table-bordered table-custom mb-0">
-                        <thead>${thead}${subhead}</thead>
-                        <tbody>${tbody}</tbody>
+                            `).join('')}
+                        </tbody>
                     </table>
                 </div>
             `;
         }
 
-        function markDirty(input) { input.classList.add('border-warning', 'border-2'); }
-
-        async function saveNewColumn() {
-            let p = {
-                TeacherID: currentUser.refId, SubjectID: teacherState.subjectId,
-                GradeLevel: teacherState.gradeLevel, Room: teacherState.room,
-                ColName: document.getElementById('colName').value, MaxScore: document.getElementById('maxScore').value,
-                ColType: document.getElementById('colType').value, IsVisible: 'false'
+        window.showTeacherForm = (data = null) => {
+            document.getElementById('teacher-form-container').style.display = 'block';
+            document.getElementById('teacher-form-container').innerHTML = `
+                <form onsubmit="event.preventDefault(); saveTeacher('${data ? data.id : ''}');" class="grid-form">
+                    <div class="input-group"><label>คำนำหน้า</label><input type="text" id="t_prefix" value="${data ? data.prefix : ''}" required></div>
+                    <div class="input-group"><label>ชื่อ-สกุล</label><input type="text" id="t_name" value="${data ? data.fullname : ''}" required></div>
+                    <div class="input-group"><label>เบอร์โทรศัพท์</label><input type="text" id="t_phone" value="${data ? data.phone : ''}" required></div>
+                    <div class="input-group"><label>ชื่อผู้ใช้ (Username)</label><input type="text" id="t_user" value="${data ? data.username : ''}" required></div>
+                    <div class="input-group"><label>รหัสผ่าน (Password)</label><input type="text" id="t_pass" value="${data ? data.password : ''}" required></div>
+                    <div class="full-width action-btns">
+                        <button type="submit" class="btn btn-success">บันทึก</button>
+                        <button type="button" class="btn btn-danger" onclick="document.getElementById('teacher-form-container').style.display='none'">ยกเลิก</button>
+                    </div>
+                </form>
+            `;
+        }
+        window.editTeacher = (data) => showTeacherForm(data);
+        window.saveTeacher = async (id) => {
+            const payload = {
+                id: id, prefix: document.getElementById('t_prefix').value, fullname: document.getElementById('t_name').value,
+                phone: document.getElementById('t_phone').value, username: document.getElementById('t_user').value, password: document.getElementById('t_pass').value
             };
+            showLoading(); await apiCall({ action: 'saveTeacher', teacherData: payload }); hideLoading();
+            Swal.fire('สำเร็จ', 'บันทึกข้อมูลคุณครูเรียบร้อย', 'success');
+            loadAdminTeachers(document.getElementById('content-area'));
+        }
+
+        // --- เมนูมอบหมายภาระงาน ---
+        async function loadAdminAssignments(container) {
             showLoading();
-            try { 
-                await callAPI('saveScoreColumn', p); 
-                bootstrap.Modal.getInstance(document.getElementById('addColumnModal')).hide();
-                document.getElementById('addColumnForm').reset();
-                loadTeacherScoreTable(); 
-            } catch(e){}
+            const [aRes, tRes, sRes, cRes] = await Promise.all([
+                apiCall({ action: 'getAssignments' }), apiCall({ action: 'getTeachers' }),
+                apiCall({ action: 'getSubjects' }), apiCall({ action: 'getClasses' })
+            ]);
             hideLoading();
+            
+            const tOptions = tRes.teachers.map(t => `<option value="${t.id}">${t.prefix}${t.fullname}</option>`).join('');
+            const sOptions = sRes.subjects.map(s => `<option value="${s.code}">${s.code} - ${s.name}</option>`).join('');
+            const cOptions = cRes.classes.map(c => `<option value="${c.grade_level}|${c.room}">ม.${c.grade_level}/${c.room}</option>`).join('');
+
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header"><h3>มอบหมายภาระงานสอน</h3></div>
+                    <form onsubmit="event.preventDefault(); saveAssignment();" class="grid-form" style="margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 5px;">
+                        <div class="input-group"><label>เลือกคุณครู</label><select id="asn_teacher" required><option value="">-- เลือก --</option>${tOptions}</select></div>
+                        <div class="input-group"><label>เลือกรายวิชา</label><select id="asn_subject" required><option value="">-- เลือก --</option>${sOptions}</select></div>
+                        <div class="input-group"><label>เลือกระดับชั้นและห้อง</label><select id="asn_class" required><option value="">-- เลือก --</option>${cOptions}</select></div>
+                        <div class="input-group" style="display:flex; align-items:end;"><button type="submit" class="btn btn-success btn-block">บันทึกมอบหมายงาน</button></div>
+                    </form>
+                    <table>
+                        <thead><tr><th>คุณครู</th><th>รายวิชา</th><th class="text-center">ระดับชั้น/ห้อง</th><th class="text-center">จัดการ</th></tr></thead>
+                        <tbody>
+                            ${aRes.assignments.map(a => `
+                                <tr>
+                                    <td>${a.teacher_name}</td><td>${a.subject_name} (${a.subject_code})</td><td class="text-center">ม.${a.grade_level}/${a.room}</td>
+                                    <td class="text-center action-btns">
+                                        <button class="btn btn-danger" onclick="deleteRecord('deleteAssignment', '${a.id}', loadAdminAssignments)"><i class="fas fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        window.saveAssignment = async () => {
+            const classVal = document.getElementById('asn_class').value.split('|');
+            const payload = { teacher_id: document.getElementById('asn_teacher').value, subject_code: document.getElementById('asn_subject').value, grade_level: classVal[0], room: classVal[1] };
+            showLoading(); await apiCall({ action: 'saveAssignment', assignmentData: payload }); hideLoading();
+            Swal.fire('สำเร็จ', 'มอบหมายงานเรียบร้อย', 'success'); loadAdminAssignments(document.getElementById('content-area'));
         }
 
-        async function delCol(cid) {
-            if(confirm('ลบช่องคะแนนนี้และคะแนนของนักเรียนทั้งหมดในช่องนี้?')) {
-                showLoading();
-                await callAPI('deleteScoreColumn', {id: cid});
-                loadTeacherScoreTable();
-            }
+        // --- เมนูตั้งค่าระบบ ---
+        async function loadAdminSettings(container) {
+            showLoading(); const res = await apiCall({ action: 'getSystemSettings' }); hideLoading();
+            const set = res.settings;
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header"><h3>ตั้งค่าระบบและการเข้าถึง</h3></div>
+                    <form onsubmit="event.preventDefault(); saveSettings();" class="grid-form">
+                        <div class="full-width"><h4>ระบบคุณครู (บันทึกคะแนน)</h4></div>
+                        <div class="input-group"><label>เวลาเปิดระบบ</label><input type="datetime-local" id="set_t_start" value="${set.teacher_start_time}"></div>
+                        <div class="input-group"><label>เวลาปิดระบบ</label><input type="datetime-local" id="set_t_end" value="${set.teacher_end_time}"></div>
+                        <div class="input-group full-width"><input type="checkbox" id="set_t_override" ${set.teacher_override_open=='true'?'checked':''}> <label for="set_t_override" style="display:inline;">เปิดระบบให้คุณครูทันที (เพิกเฉยต่อเวลา)</label></div>
+                        
+                        <div class="full-width" style="margin-top:20px;"><h4>ระบบนักเรียน (ดูผลการเรียน)</h4></div>
+                        <div class="input-group"><label>เวลาเปิดระบบ</label><input type="datetime-local" id="set_s_start" value="${set.student_start_time}"></div>
+                        <div class="input-group"><label>เวลาปิดระบบ</label><input type="datetime-local" id="set_s_end" value="${set.student_end_time}"></div>
+                        <div class="input-group full-width"><input type="checkbox" id="set_s_override" ${set.student_override_open=='true'?'checked':''}> <label for="set_s_override" style="display:inline;">เปิดระบบให้นักเรียนดูทันที (เพิกเฉยต่อเวลา)</label></div>
+                        
+                        <div class="full-width action-btns" style="margin-top:20px;"><button type="submit" class="btn btn-success">บันทึกการตั้งค่า</button></div>
+                    </form>
+                </div>
+            `;
+        }
+        window.saveSettings = async () => {
+            const payload = {
+                teacher_start_time: document.getElementById('set_t_start').value, teacher_end_time: document.getElementById('set_t_end').value,
+                teacher_override_open: document.getElementById('set_t_override').checked.toString(),
+                student_start_time: document.getElementById('set_s_start').value, student_end_time: document.getElementById('set_s_end').value,
+                student_override_open: document.getElementById('set_s_override').checked.toString()
+            };
+            showLoading(); await apiCall({ action: 'saveSystemSettings', ...payload }); hideLoading();
+            Swal.fire('สำเร็จ', 'บันทึกการตั้งค่าระบบเรียบร้อย', 'success');
         }
 
-        async function toggleColVis(cid, isVis) {
-            showLoading();
-            try { await callAPI('toggleColumnVisibility', {id: cid, isVisible: isVis}); } catch(e){}
-            hideLoading();
-        }
-
-        async function saveAllScores() {
-            let inputs = document.querySelectorAll('.save-trigger');
-            let dataArr = [];
-            inputs.forEach(inp => {
-                if(inp.value !== "") {
-                    dataArr.push({ StudentID: inp.dataset.sid, ScoreColID: inp.dataset.cid, ScoreValue: inp.value });
+        window.deleteRecord = (action, id, reloadFunc) => {
+            Swal.fire({ title: 'ยืนยันการลบ?', text: "คุณไม่สามารถกู้คืนข้อมูลได้!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#E53E3E', confirmButtonText: 'ใช่, ลบเลย' })
+            .then(async (result) => {
+                if (result.isConfirmed) {
+                    showLoading(); await apiCall({ action: action, id: id }); hideLoading();
+                    Swal.fire('ลบแล้ว!', 'ลบข้อมูลเรียบร้อย', 'success'); reloadFunc(document.getElementById('content-area'));
                 }
             });
-            showLoading();
-            try {
-                await callAPI('saveMultipleScores', { scores: dataArr });
-                Swal.fire({title: 'บันทึกสำเร็จ!', text: 'อัปเดตคะแนนเรียบร้อยแล้ว', icon: 'success', timer: 2000});
-                loadTeacherScoreTable();
-            } catch(e) {}
-            hideLoading();
         }
 
-        // ==========================================
-        // 6. Student Module
-        // ==========================================
-        async function showStudentMenu(menu) {
-            showLoading();
-            document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
-            if(event && event.currentTarget) event.currentTarget.classList.add('active');
-
-            let html = '';
-            if (menu === 'dashboard') {
-                const dash = await callAPI('getStudentDashboard', { studentId: currentUser.refId });
-                html = `
-                    <h4 class="text-primary mb-4"><i class="fa-solid fa-chart-line"></i> ผลการเรียนเฉลี่ย</h4>
-                    ${!dash.isOpen ? `<div class="alert alert-warning"><i class="fa-solid fa-lock"></i> ระบบยังไม่เปิดให้ดูผลการเรียนในขณะนี้</div>` : ''}
-                    <div class="card p-3 table-responsive">
-                        <table class="table table-hover table-custom">
-                            <thead><tr><th>รหัสวิชา</th><th>ชื่อวิชา</th><th>ประเภท</th><th>หน่วยกิต</th><th>เกรด</th></tr></thead>
-                            <tbody>${dash.dashboardData.length===0?'<tr><td colspan="5" class="text-center">ไม่พบข้อมูลรายวิชา</td></tr>':dash.dashboardData.map(d => `
-                                <tr><td>${d.subjectCode}</td><td>${d.subjectName}</td><td>${d.type}</td><td>${d.credit}</td>
-                                <td class="fw-bold ${d.grade!=='****'?(parseFloat(d.grade)>0?'text-success':'text-danger'):''}">${d.grade}</td></tr>
-                            `).join('')}</tbody>
-                        </table>
-                    </div>`;
-            } else if (menu === 'scores') {
-                const dash = await callAPI('getStudentDashboard', { studentId: currentUser.refId });
-                const subjects = await callAPI('getSubjects');
-                let mySubjs = subjects.filter(s => s.GradeLevel == currentUser.gradeLevel && (s.Room == currentUser.room || s.Room == 'รวม' || !s.Room));
-                let sOpts = `<option value="">-- เลือกวิชาเพื่อดูคะแนนเก็บ --</option>` + mySubjs.map(s => `<option value="${s.ID}">${s.SubjectCode} ${s.SubjectName}</option>`).join('');
-
-                html = `
-                    <h4 class="text-primary mb-4"><i class="fa-solid fa-list-ol"></i> คะแนนเก็บ</h4>
-                    <div class="row mb-3">
-                        <div class="col-md-8"><select class="form-select form-select-lg" id="stuSubjSelect">${sOpts}</select></div>
-                        <div class="col-md-4"><button class="btn btn-primary btn-lg w-100" onclick="loadStudentScores()"><i class="fa-solid fa-search"></i> ค้นหา</button></div>
+        /**
+         * ============================================================================
+         * โมดูล: คุณครู (Teacher)
+         * ============================================================================
+         */
+        let currentGradeSheet = {};
+        
+        async function loadTeacherScores(container) {
+            showLoading(); const res = await apiCall({ action: 'getTeacherAssignments', teacher_id: currentUser.id }); hideLoading();
+            
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header"><h3>บันทึกคะแนน</h3></div>
+                    ${!res.isAccessAllowed ? `<div style="background:#FED7D7; padding:15px; color:#C53030; border-radius:5px; margin-bottom:15px;"><i class="fas fa-lock"></i> ขณะนี้ระบบบันทึกคะแนนถูกปิด (ช่องกรอกคะแนนจะเป็นสีเทา)</div>` : ''}
+                    
+                    <div class="grid-form" style="margin-bottom: 20px;">
+                        <div class="input-group">
+                            <label>เลือกวิชาและห้องที่ต้องการกรอกคะแนน</label>
+                            <select id="t_assign_select">
+                                <option value="">-- เลือก --</option>
+                                ${res.assignments.map(a => `<option value="${a.subject_code}|${a.grade_level}\vert{}${a.room}">${a.subject_name} (${a.subject_code}) - ม.${a.grade_level}/${a.room}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="input-group" style="display:flex; align-items:end;">
+                            <button class="btn btn-secondary btn-block" onclick="openGradeSheet()"><i class="fas fa-search"></i> ค้นหาตารางคะแนน</button>
+                        </div>
                     </div>
-                    <div id="studentScoreArea"></div>
-                `;
-            } else if (menu === 'history') {
-                const reqs = await callAPI('getStudentRemedial', { studentId: currentUser.refId });
-                html = `
-                    <h4 class="text-primary mb-4"><i class="fa-solid fa-clock-rotate-left"></i> ประวัติคำร้องขอแก้ตัว</h4>
-                    <div class="card p-3 table-responsive">
-                        <table class="table table-hover table-custom">
-                            <thead><tr><th>วันที่</th><th>วิชา (รหัสช่อง)</th><th>เหตุผล</th><th>สถานะ</th><th>คะแนนใหม่</th></tr></thead>
-                            <tbody>${reqs.length===0?'<tr><td colspan="5" class="text-center">ไม่มีประวัติคำร้อง</td></tr>':reqs.map(r => `
-                                <tr>
-                                    <td>${r.RequestDate}</td><td>ช่อง ID: ${r.ScoreColID}</td><td>${r.Reason}</td>
-                                    <td><span class="badge ${r.Status==='อนุมัติ'?'bg-success':(r.Status==='รอตรวจสอบ'?'bg-warning text-dark':'bg-secondary')}">${r.Status}</span></td>
-                                    <td class="fw-bold text-success">${r.NewScore||'-'}</td>
-                                </tr>
-                            `).join('')}</tbody>
-                        </table>
-                    </div>`;
-            }
-            renderMainContent(html);
-            hideLoading();
+                    
+                    <div id="grade-sheet-area"></div>
+                </div>
+            `;
+            globalData.isTeacherAccessAllowed = res.isAccessAllowed;
         }
 
-        async function loadStudentScores() {
-            let subId = document.getElementById('stuSubjSelect').value;
-            let subName = document.getElementById('stuSubjSelect').options[document.getElementById('stuSubjSelect').selectedIndex].text;
-            if(!subId) return;
+        window.openGradeSheet = async () => {
+            const sel = document.getElementById('t_assign_select').value;
+            if(!sel) return;
+            const [subj, grade, room] = sel.split('|');
             
             showLoading();
-            try {
-                const res = await callAPI('getStudentScores', { studentId: currentUser.refId, subjectId: subId });
-                let html = res.isOpen===false ? `<div class="alert alert-warning"><i class="fa-solid fa-lock"></i> ระบบปิดอยู่ บางช่องคะแนนอาจถูกซ่อน (****)</div>` : '';
+            const res = await apiCall({ action: 'getGradeSheet', subject_code: subj, grade_level: grade, room: room });
+            hideLoading();
+            
+            currentGradeSheet = { subj, grade, room, students: res.students, columns: res.columns, scoreMap: res.scoreMap };
+            renderGradeTable();
+        }
+
+        window.renderGradeTable = () => {
+            const area = document.getElementById('grade-sheet-area');
+            const { subj, grade, room, students, columns, scoreMap } = currentGradeSheet;
+            const isAllowed = globalData.isTeacherAccessAllowed;
+            const disabledAttr = isAllowed ? '' : 'disabled style="background:#e2e8f0;"';
+
+            let thCols = columns.map(c => `<th class="text-center">${c.column_name}<br><small>(เต็ม ${c.max_score})</small></th>`).join('');
+            
+            let tbody = students.map((st, idx) => {
+                let total = 0;
+                let tdCols = columns.map(c => {
+                    let score = (scoreMap[st.student_id] && scoreMap[st.student_id][c.id]) ? parseFloat(scoreMap[st.student_id][c.id]) : 0;
+                    total += score;
+                    let isLowClass = (score < (parseFloat(c.max_score)/2)) ? 'low-score' : '';
+                    return `<td class="text-center ${isLowClass}"><input type="number" class="score-input" data-student="${st.student_id}" data-col="${c.id}" value="${score || ''}" ${disabledAttr} onchange="markDirty()"></td>`;
+                }).join('');
                 
-                html += `
-                <div class="card p-3 table-responsive">
-                    <table class="table table-bordered table-custom">
-                        <thead><tr><th>ช่องคะแนน</th><th>คะแนนเต็ม</th><th>คะแนนที่ได้</th><th>ผลการประเมิน</th><th>ขอแก้ตัว</th></tr></thead>
-                        <tbody>${res.scores.length===0?'<tr><td colspan="5" class="text-center">ยังไม่มีการสร้างช่องคะแนน</td></tr>':res.scores.map(s => {
-                            let raw = parseFloat(s.rawScoreForRedCell);
-                            let isRedCell = (!isNaN(raw) && raw < parseFloat(s.maxScore)/2) ? 'cell-fail' : '';
-                            let passText = s.score==='****' ? '-' : (s.isPass ? '<span class="text-success"><i class="fa-solid fa-check"></i> ผ่าน</span>' : '<span class="text-danger"><i class="fa-solid fa-xmark"></i> ไม่ผ่าน</span>');
-                            let btnStr = (!s.isPass && s.score!=='****') ? `<button class="btn btn-sm btn-danger" onclick="openRemedialModal('${s.colId}', '${subName}', '${s.colName}')">ส่งคำร้อง</button>` : '-';
-                            return `
-                            <tr>
-                                <td>${s.colName}${s.colType!=='Unit'?`(${s.colType})`:''}</td>
-                                <td class="text-center">${s.maxScore}</td>
-                                <td class="text-center fw-bold ${isRedCell}" style="font-size:1.2rem;">${s.score}</td>
-                                <td class="text-center">${passText}</td>
-                                <td class="text-center">${btnStr}</td>
-                            </tr>
-                        `}).join('')}</tbody>
+                return `<tr><td class="text-center">${st.order_no}</td><td>${st.student_id}</td><td>${st.prefix}${st.firstname} ${st.lastname}</td>${tdCols}<td class="text-center"><b>${total}</b></td></tr>`;
+            }).join('');
+
+            area.innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
+                    <div>
+                        <button class="btn btn-secondary" onclick="showAddColumnModal()" ${disabledAttr}><i class="fas fa-plus"></i> เพิ่มช่องคะแนน</button>
+                        <button class="btn btn-warning" onclick="showVisibilityModal()" ${disabledAttr}><i class="fas fa-eye"></i> เปิดให้นักเรียนดูคะแนน</button>
+                    </div>
+                    <button class="btn btn-success" onclick="saveGradeScores()" ${disabledAttr}><i class="fas fa-save"></i> บันทึกคะแนนทั้งหมด</button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr><th class="text-center">เลขที่</th><th>รหัส</th><th>ชื่อ-สกุล</th>${thCols}<th class="text-center">รวม</th></tr>
+                        </thead>
+                        <tbody>${tbody.length > 0 ? tbody : '<tr><td colspan="100%" class="text-center">ไม่พบรายชื่อนักเรียนในห้องนี้</td></tr>'}</tbody>
                     </table>
-                </div>`;
-                document.getElementById('studentScoreArea').innerHTML = html;
-            } catch(e){}
-            hideLoading();
+                </div>
+            `;
         }
 
-        function openRemedialModal(colId, subName, colName) {
-            document.getElementById('remColId').value = colId;
-            document.getElementById('remSubjectName').value = subName;
-            document.getElementById('remColName').value = colName;
-            document.getElementById('remedialForm').reset();
-            new bootstrap.Modal(document.getElementById('remedialModal')).show();
-        }
+        let isGradeDirty = false;
+        window.markDirty = () => isGradeDirty = true;
 
-        async function submitRemedialRequest() {
-            let colId = document.getElementById('remColId').value;
-            let reason = document.getElementById('remReason').value;
-            let fileInput = document.getElementById('remImage');
-            if(!reason) return Swal.fire('แจ้งเตือน', 'กรุณาระบุเหตุผล', 'warning');
-
+        window.saveGradeScores = async () => {
+            if(!isGradeDirty) return Swal.fire('ข้อมูล', 'ไม่มีการเปลี่ยนแปลงคะแนน', 'info');
+            const inputs = document.querySelectorAll('.score-input');
+            let scores = [];
+            inputs.forEach(inp => {
+                if(inp.value !== '') scores.push({ student_id: inp.dataset.student, column_id: inp.dataset.col, score: inp.value });
+            });
+            
             showLoading();
-            let base64Image = "";
-            if(fileInput.files.length > 0) {
-                let file = fileInput.files[0];
-                let reader = new FileReader();
-                reader.onloadend = async function() {
-                    base64Image = reader.result;
-                    sendRemedialToAPI(colId, reason, base64Image);
-                }
-                reader.readAsDataURL(file);
-            } else {
-                sendRemedialToAPI(colId, reason, "");
-            }
-        }
-        
-        async function sendRemedialToAPI(colId, reason, base64Str) {
-            try {
-                await callAPI('submitRemedial', { studentId: currentUser.refId, scoreColId: colId, reason: reason, imageBase64: base64Str });
-                bootstrap.Modal.getInstance(document.getElementById('remedialModal')).hide();
-                Swal.fire('สำเร็จ', 'ส่งคำร้องขอแก้ตัวเรียบร้อยแล้ว', 'success');
-                showStudentMenu('history');
-            } catch(e){}
+            await apiCall({ action: 'saveScoresBatch', subject_code: currentGradeSheet.subj, grade_level: currentGradeSheet.grade, room: currentGradeSheet.room, scores: scores });
             hideLoading();
+            Swal.fire('สำเร็จ', 'บันทึกคะแนนเรียบร้อย', 'success');
+            isGradeDirty = false;
+            openGradeSheet(); // Reload table
         }
+
+        window.showAddColumnModal = () => {
+            Swal.fire({
+                title: 'เพิ่มช่องคะแนนใหม่',
+                html: `
+                    <input id="swal-col-name" class="swal2-input" placeholder="ชื่อช่อง/หน่วยการเรียนรู้">
+                    <input id="swal-col-max" type="number" class="swal2-input" placeholder="คะแนนเต็ม">
+                    <select id="swal-col-type" class="swal2-select"><option value="normal">คะแนนเก็บทั่วไป</option><option value="midterm">สอบกลางภาค</option><option value="final">สอบปลายภาค</option></select>
+                `,
+                preConfirm: () => {
+                    const name = document.getElementById('swal-col-name').value;
+                    const max = document.getElementById('swal-col-max').value;
+                    const type = document.getElementById('swal-col-type').value;
+                    if(!name || !max) Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบถ้วน');
+                    return { name, max, type };
+                }
+            }).then(async (result) => {
+                if(result.isConfirmed) {
+                    showLoading();
+                    await apiCall({ action: 'addGradeColumn', subject_code: currentGradeSheet.subj, grade_level: currentGradeSheet.grade, room: currentGradeSheet.room, column_name: result.value.name, max_score: result.value.max, type: result.value.type });
+                    hideLoading(); openGradeSheet();
+                }
+            });
+        }
+
+        window.showVisibilityModal = () => {
+            let checks = currentGradeSheet.columns.map(c => `
+                <div style="text-align:left; margin:10px 0;">
+                    <input type="checkbox" id="vis_${c.id}" value="${c.id}" ${c.is_visible_to_student == 'true' ? 'checked' : ''} style="transform: scale(1.5); margin-right:10px;">
+                    <label for="vis_${c.id}" style="font-size:18px;">${c.column_name} (เต็ม ${c.max_score})</label>
+                </div>
+            `).join('');
+
+            Swal.fire({
+                title: 'เลือกช่องที่อนุญาตให้นักเรียนดูได้',
+                html: checks, confirmButtonText: 'บันทึก',
+                preConfirm: () => {
+                    let checked = [];
+                    currentGradeSheet.columns.forEach(c => { if(document.getElementById(`vis_${c.id}`).checked) checked.push(c.id); });
+                    return checked;
+                }
+            }).then(async (result) => {
+                if(result.isConfirmed) {
+                    showLoading();
+                    await apiCall({ action: 'updateVisibleColumns', subject_code: currentGradeSheet.subj, grade_level: currentGradeSheet.grade, room: currentGradeSheet.room, visibleColumnIds: result.value });
+                    hideLoading(); Swal.fire('สำเร็จ', 'อัพเดทสถานะการมองเห็นแล้ว', 'success'); openGradeSheet();
+                }
+            });
+        }
+
+        async function loadTeacherRequests(container) {
+            showLoading(); const res = await apiCall({ action: 'getTeacherRequests', grade_level: '', subject_code: '' }); hideLoading();
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header"><h3>คำร้องขอแก้ตัวจากนักเรียน</h3></div>
+                    <p style="color:var(--primary);"><i class="fas fa-info-circle"></i> หากคุณครูเข้าไปแก้ไขคะแนนในเมนูบันทึกคะแนน และนักเรียนได้คะแนนผ่านครึ่ง ระบบจะปรับสถานะคำร้องเป็น "อนุมัติ" ทันทีโดยอัตโนมัติ</p>
+                    <table>
+                        <thead><tr><th>วิชา</th><th>นักเรียน</th><th>ช่องคะแนนที่ขอแก้</th><th class="text-center">สถานะ</th><th class="text-center">รายละเอียด</th></tr></thead>
+                        <tbody>
+                            ${res.requests.length === 0 ? '<tr><td colspan="5" class="text-center">ไม่มีคำร้องขอแก้ตัว</td></tr>' : res.requests.map(r => `
+                                <tr>
+                                    <td>${r.subject_name}</td><td>${r.student_name} (ม.${r.grade_level}/${r.room})</td><td>${r.column_name}</td>
+                                    <td class="text-center"><span class="badge ${r.status=='อนุมัติ'?'bg-approved':'bg-pending'}">${r.status}</span></td>
+                                    <td class="text-center"><button class="btn btn-secondary" onclick='viewReqDetail(${JSON.stringify(r)})'><i class="fas fa-search"></i> ดู</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        window.viewReqDetail = (r) => {
+            Swal.fire({ title: 'รายละเอียดคำร้อง', html: `
+                <div style="text-align:left;">
+                    <p><b>เหตุผล:</b> ${r.reason}</p>
+                    ${r.image_url ? `<p><b>ลิงก์แนบ/หลักฐาน:</b> <a href="${r.image_url}" target="_blank">คลิกดูรูปภาพ</a></p>` : ''}
+                    <hr>
+                    <p><b>คะแนนเดิม:</b> ${r.score_before} / ${r.max_score}</p>
+                </div>
+            `});
+        }
+
+        /**
+         * ============================================================================
+         * โมดูล: นักเรียน (Student)
+         * ============================================================================
+         */
+        async function loadStudentSummary(container) {
+            showLoading(); const res = await apiCall({ action: 'getStudentSummary', student_id: currentUser.student_id }); hideLoading();
+            
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header"><h3>ผลการเรียนเฉลี่ย</h3></div>
+                    ${!res.isAccessAllowed ? `<div style="background:#FED7D7; padding:15px; color:#C53030; border-radius:5px; margin-bottom:15px;"><i class="fas fa-lock"></i> ขณะนี้ระบบยังไม่เปิดให้ดูผลการเรียน (ข้อมูลจะถูกซ่อนเป็น ****)</div>` : ''}
+                    <table>
+                        <thead><tr><th class="text-center">รหัสวิชา</th><th>ชื่อวิชา</th><th class="text-center">ประเภท</th><th class="text-center">หน่วยกิต</th><th class="text-center">เกรดที่ได้</th></tr></thead>
+                        <tbody>
+                            ${res.summary.map(s => `
+                                <tr>
+                                    <td class="text-center">${s.code}</td><td>${s.name}</td><td class="text-center">${s.type}</td>
+                                    <td class="text-center">${s.credit}</td><td class="text-center" style="font-weight:bold; font-size:20px; color:var(--primary);">${s.grade}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        async function loadStudentScores(container) {
+            showLoading(); const resSubj = await apiCall({ action: 'getStudentSummary', student_id: currentUser.student_id }); hideLoading();
+            const sOptions = resSubj.summary.map(s => `<option value="${s.code}">${s.name} (${s.code})</option>`).join('');
+
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header"><h3>ดูคะแนนเก็บ</h3></div>
+                    <div class="grid-form" style="margin-bottom: 20px;">
+                        <div class="input-group">
+                            <label>เลือกรายวิชา</label>
+                            <select id="stu_subj_select"><option value="">-- เลือกวิชา --</option>${sOptions}</select>
+                        </div>
+                        <div class="input-group" style="display:flex; align-items:end;">
+                            <button class="btn btn-secondary btn-block" onclick="fetchStudentDetailScores()"><i class="fas fa-search"></i> ดูคะแนน</button>
+                        </div>
+                    </div>
+                    <div id="stu-score-area"></div>
+                </div>
+            `;
+        }
+
+        window.fetchStudentDetailScores = async () => {
+            const subj = document.getElementById('stu_subj_select').value;
+            if(!subj) return;
+            
+            showLoading(); const res = await apiCall({ action: 'getStudentDetailScores', student_id: currentUser.student_id, subject_code: subj }); hideLoading();
+            
+            const area = document.getElementById('stu-score-area');
+            if(!res.isAccessAllowed) {
+                area.innerHTML = `<div style="background:#FED7D7; padding:15px; color:#C53030; border-radius:5px; margin-bottom:15px;"><i class="fas fa-lock"></i> ระบบคะแนนเก็บยังไม่เปิดให้ดูในขณะนี้</div>`;
+            }
+
+            area.innerHTML += `
+                <table>
+                    <thead><tr><th>หน่วยการเรียนรู้/ช่องคะแนน</th><th class="text-center">คะแนนเต็ม</th><th class="text-center">คะแนนที่ได้</th><th class="text-center">ขอแก้ตัว</th></tr></thead>
+                    <tbody>
+                        ${res.scores.map(s => {
+                            let reqBtn = '';
+                            if(!s.is_masked && s.is_low) {
+                                reqBtn = `<button class="btn btn-warning" onclick="showReqForm('${subj}', '${s.column_id}', '${s.score}')">ส่งคำร้อง</button>`;
+                            }
+                            return `
+                                <tr>
+                                    <td>${s.column_name}</td><td class="text-center">${s.max_score}</td>
+                                    <td class="text-center" style="${s.is_low ? 'color:#E53E3E; font-weight:bold;' : ''}">${s.score}</td>
+                                    <td class="text-center action-btns">${s.is_masked ? '-' : reqBtn}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        window.showReqForm = (subj, colId, oldScore) => {
+            Swal.fire({
+                title: 'ส่งคำร้องขอแก้ตัว',
+                html: `
+                    <textarea id="req_reason" class="swal2-textarea" placeholder="ระบุเหตุผล หรือ งานที่ส่งแก้ตัว"></textarea>
+                    <input id="req_img" type="text" class="swal2-input" placeholder="ลิงก์รูปภาพหลักฐาน (URL) (ถ้ามี)">
+                `,
+                showCancelButton: true, confirmButtonText: 'ส่งคำร้อง',
+                preConfirm: () => {
+                    const reason = document.getElementById('req_reason').value;
+                    if(!reason) Swal.showValidationMessage('กรุณาระบุเหตุผล');
+                    return { reason, img: document.getElementById('req_img').value };
+                }
+            }).then(async (result) => {
+                if(result.isConfirmed) {
+                    showLoading();
+                    await apiCall({ action: 'submitCorrectionRequest', student_id: currentUser.student_id, subject_code: subj, column_id: colId, reason: result.value.reason, image_url: result.value.img, score_before: oldScore });
+                    hideLoading(); Swal.fire('สำเร็จ', 'ส่งคำร้องเรียบร้อยแล้ว กรุณาติดตามสถานะที่เมนูประวัติ', 'success');
+                }
+            });
+        }
+
+        async function loadStudentHistory(container) {
+            showLoading(); const res = await apiCall({ action: 'getStudentRequestsHistory', student_id: currentUser.student_id }); hideLoading();
+            
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header"><h3>ประวัติคำร้องขอแก้ตัว</h3></div>
+                    <table>
+                        <thead><tr><th>วิชา</th><th>ช่องคะแนน</th><th>เหตุผล</th><th class="text-center">คะแนนก่อน-หลัง</th><th class="text-center">สถานะ</th></tr></thead>
+                        <tbody>
+                            ${res.requests.length === 0 ? '<tr><td colspan="5" class="text-center">ยังไม่มีประวัติคำร้อง</td></tr>' : res.requests.map(r => `
+                                <tr>
+                                    <td>${r.subject_name}</td><td>${r.column_name}</td><td>${r.reason}</td>
+                                    <td class="text-center">${r.score_before} -> <b>${r.score_after}</b></td>
+                                    <td class="text-center"><span class="badge ${r.status=='อนุมัติ'?'bg-approved':'bg-pending'}">${r.status}</span></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Initialize App
+        window.onload = checkAutoLogin;
+
     </script>
 </body>
 </html>
